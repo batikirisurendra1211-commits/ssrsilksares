@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37" />
+      <stop offset="50%" stop-color="#F3E5AB" />
+      <stop offset="100%" stop-color="#AA7C11" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield/Lotus Concept -->
+  <path d="M 50 5 C 75 5, 95 25, 95 50 C 95 75, 75 95, 50 95 C 25 95, 5 75, 5 50 C 5 25, 25 5, 50 5 Z" fill="#4A0E15" stroke="url(#gold-grad)" stroke-width="3" />
+  <!-- Traditional motif curves representing weave/thread (Lotus/Paisley hybrid) -->
+  <path d="M 50 20 C 62 35, 75 42, 70 60 C 65 72, 50 78, 50 78 C 50 78, 35 72, 30 60 C 25 42, 38 35, 50 20 Z" fill="url(#gold-grad)" opacity="0.9" />
+  <!-- Inner teardrop thread element -->
+  <path d="M 50 32 C 57 45, 62 50, 58 62 C 54 70, 50 72, 50 72 C 50 72, 46 70, 42 62 C 38 50, 43 45, 50 32 Z" fill="#4A0E15" />
+  <!-- Monogram text overlay -->
+  <text x="50" y="87" font-family="'Playfair Display', serif" font-weight="bold" font-size="10" fill="url(#gold-grad)" text-anchor="middle" letter-spacing="1">SS SILKS</text>
+</svg>

@@ -1,0 +1,187 @@
+from database import SessionLocal, engine, Base
+import models
+
+def seed_db():
+    # Recreate tables to clean start
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    db = SessionLocal()
+
+    try:
+        # Seed Products
+        products = [
+            models.Product(
+                id="ss-001",
+                sku="SS-GW-SLK-001",
+                name="Classic Crimson Gadwal Semi Silk Saree",
+                weave="Gadwal Semi Silk",
+                fabric="Semi Silk",
+                color="Maroon",
+                occasion="Wedding Wear",
+                price=3499,
+                stock=5,
+                description="An elegant Crimson Red Gadwal Semi Silk Saree featuring a contrast rich golden tissue border and an ornate zari-woven checks pallu. Perfectly mimics the drape and shine of traditional pure silk.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="580 grams",
+                care="Dry Clean Recommended to maintain zari luster.",
+                image="saree1Img"
+            ),
+            models.Product(
+                id="ss-002",
+                sku="SS-GW-CIC-002",
+                name="Emerald Green Gadwal Semi Cicco Saree",
+                weave="Gadwal Semi Cicco",
+                fabric="Semi Cicco",
+                color="Emerald Green",
+                occasion="Festive Wear",
+                price=2799,
+                stock=1,
+                description="Features a rich emerald green body woven with fine cotton-silk blend threads (Semi Cicco) for maximum comfort and a crisp traditional drape. Finished with a contrasting peacock blue zari border and traditional coin buttis.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="520 grams",
+                care="Gentle Hand Wash with mild detergent, Dry in Shade.",
+                image="saree2Img"
+            ),
+            models.Product(
+                id="ss-003",
+                sku="SS-GW-SLK-003",
+                name="Mustard & Pink Gadwal Heritage Saree",
+                weave="Gadwal Semi Silk",
+                fabric="Semi Silk",
+                color="Mustard Gold",
+                occasion="Festive Wear",
+                price=3899,
+                stock=8,
+                description="A heritage mustard gold body paired with a traditional dark pink silk border and a grand pallu. A timeless design originating from Bengaluru weavers, suitable for pujas, housewarmings, and weddings.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="610 grams",
+                care="Dry Clean Only.",
+                image="saree3Img"
+            ),
+            models.Product(
+                id="ss-004",
+                sku="SS-GW-CIC-004",
+                name="Peacock Blue Gadwal Semi Cicco Saree",
+                weave="Gadwal Semi Cicco",
+                fabric="Semi Cicco",
+                color="Peacock Blue",
+                occasion="Daily Wear",
+                price=2499,
+                stock=12,
+                description="Lightweight, everyday traditional wear Semi Cicco saree in royal peacock blue. Features a thin gold zari line border with red temple motifs. Breathable cotton-silk weave perfect for hot weather and long wear hours.",
+                length="6.3 Meters (5.5m Saree + 0.8m Contrast Blouse)",
+                weight="490 grams",
+                care="Gentle Hand Wash or Machine Wash in Cold Water.",
+                image="saree2Img"
+            ),
+            models.Product(
+                id="ss-005",
+                sku="SS-KP-SLK-005",
+                name="Royal Violet Kanchipuram Style Semi Silk",
+                weave="Kanchipuram Style",
+                fabric="Semi Silk",
+                color="Violet",
+                occasion="Wedding Wear",
+                price=4999,
+                stock=3,
+                description="A grand Kanchipuram style semi-silk saree with heavy brocade weaving across the body. The contrasting orange zari-woven pallu depicts traditional checks, mango buttis, and elephant motifs.",
+                length="6.3 Meters (5.5m Saree + 0.8m Orange Blouse)",
+                weight="690 grams",
+                care="Dry Clean Only. Iron on reverse side of zari.",
+                image="saree1Img"
+            ),
+            models.Product(
+                id="ss-006",
+                sku="SS-GW-CIC-006",
+                name="Tangerine Orange Gadwal Semi Cicco",
+                weave="Gadwal Semi Cicco",
+                fabric="Semi Cicco",
+                color="Orange",
+                occasion="Festive Wear",
+                price=2999,
+                stock=0,
+                description="A glowing tangerine orange body contrasted with a bottle green border. This semi-cicco piece showcases our signature Bengaluru weaver borders, combining durability with standard handloom elegance.",
+                length="6.3 Meters (5.5m Saree + 0.8m Green Blouse)",
+                weight="510 grams",
+                care="Dry Clean Recommended for the first wash, followed by mild hand wash.",
+                image="saree3Img"
+            ),
+            models.Product(
+                id="ss-007",
+                sku="SS-GW-SLK-007",
+                name="Midnight Black Gold Border Semi Silk",
+                weave="Gadwal Semi Silk",
+                fabric="Semi Silk",
+                color="Black",
+                occasion="Daily Wear",
+                price=3699,
+                stock=4,
+                description="A rare midnight black semi-silk saree bordered by dual gold bands. The simple, elegant plain body highlights the intricate border and block print detail on the pallu, making it perfect for evening celebrations.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="550 grams",
+                care="Dry Clean Only.",
+                image="saree1Img"
+            ),
+            models.Product(
+                id="ss-008",
+                sku="SS-GW-SLK-008",
+                name="Pastel Pink & Olive Semi Silk Saree",
+                weave="Gadwal Semi Silk",
+                fabric="Semi Silk",
+                color="Pink",
+                occasion="Festive Wear",
+                price=3999,
+                stock=2,
+                description="Delightful baby pink body paired with an olive green traditional Gadwal double border. Woven in our finest semi-silk fibers, it mimics pure mulberry silk with a smooth hand-feel.",
+                length="6.3 Meters (5.5m Saree + 0.8m Olive Blouse)",
+                weight="560 grams",
+                care="Dry Clean Only.",
+                image="saree2Img"
+            )
+        ]
+        
+        # Seed Users
+        users = [
+            models.User(email="customer@gmail.com", name="Aarati Nair", role="customer", b2b_approved=False),
+            models.User(email="admin@sssilksarees.com", name="Store Owner", role="admin", b2b_approved=False),
+            models.User(email="bulk@sareeemporium.com", name="Bengaluru Saree Emporium", role="b2b", b2b_approved=True)
+        ]
+
+        # Seed Orders
+        orders = [
+            models.Order(
+                id="ORD-9281",
+                customer_name="Radha Murthy",
+                email="radha@yahoo.com",
+                items=[{"productName": "Classic Crimson Gadwal Semi Silk Saree", "quantity": 1, "price": 3499}],
+                total=3499,
+                status="Delivered",
+                date="2026-06-15",
+                type="B2C"
+            ),
+            models.Order(
+                id="ORD-4029",
+                customer_name="Bengaluru Saree Emporium (Bulk)",
+                email="bulk@sareeemporium.com",
+                items=[{"productName": "Mustard & Pink Gadwal Heritage Saree", "quantity": 20, "price": 2900}],
+                total=58000,
+                status="Shipped",
+                date="2026-06-18",
+                type="B2B"
+            )
+        ]
+
+        db.add_all(products)
+        db.add_all(users)
+        db.add_all(orders)
+        db.commit()
+        print("Database successfully seeded.")
+    except Exception as e:
+        print(f"Error seeding database: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    seed_db()
