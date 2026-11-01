@@ -6,8 +6,14 @@ from dependencies import get_current_admin
 
 router = APIRouter(prefix="/api/uploads", tags=["Uploads"])
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+import tempfile
+
+try:
+    UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
+    UPLOAD_DIR.mkdir(exist_ok=True)
+except Exception:
+    UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads"
+    UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",

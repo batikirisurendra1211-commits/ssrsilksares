@@ -21,11 +21,16 @@ except Exception:
 async def lifespan(app: FastAPI):
     """
     Application startup and shutdown events.
-    Verifies database connection and ensures tables are present.
+    Verifies database connection, ensures tables are present, and seeds initial catalog.
     """
     try:
         Base.metadata.create_all(bind=engine)
         print("Successfully connected to database and verified tables.")
+        try:
+            from seed import seed_db
+            seed_db()
+        except Exception as seed_err:
+            print(f"Catalog seeding notice: {seed_err}")
     except Exception as e:
         print(f"Notice: Database startup check ({e}). Alembic migrations manage the primary schema.")
     yield
