@@ -8,19 +8,24 @@ from database import engine, Base
 from config import settings
 from routers import auth, products, orders, payments, uploads, audit
 
-# Ensure uploads directory exists
-UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Ensure uploads directory exists safely (supporting serverless read-only filesystems)
+try:
+    UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+    UPLOAD_DIR.mkdir(exist_ok=True)
+except Exception:
+    import tempfile
+    UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads"
+    UPLOAD_DIR.mkdir(exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application startup and shutdown events.
-    Verifies PostgreSQL connection and ensures tables are present.
+    Verifies database connection and ensures tables are present.
     """
     try:
         Base.metadata.create_all(bind=engine)
-        print("Successfully connected to PostgreSQL database (sssilksarees).")
+        print("Successfully connected to database and verified tables.")
     except Exception as e:
         print(f"Notice: Database startup check ({e}). Alembic migrations manage the primary schema.")
     yield
@@ -39,6 +44,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

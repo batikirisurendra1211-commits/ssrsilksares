@@ -1,4 +1,8 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_URL || (
+  typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://localhost:8000/api"
+    : "/api"
+);
 
 /**
  * Standard fetch wrapper with cookie credentials and error extraction.
