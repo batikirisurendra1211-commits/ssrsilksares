@@ -59,12 +59,14 @@ app.include_router(uploads.router)
 app.include_router(audit.router)
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/")
 def root():
     return {
         "service": settings.PROJECT_NAME,
         "status": "online",
         "version": settings.VERSION,
-        "database": "PostgreSQL",
+        "database": "Cloud PostgreSQL / SQLite",
         "docs": "/docs"
     }
 
