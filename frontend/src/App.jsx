@@ -21,10 +21,12 @@ import saree1Img from "./assets/products/saree-1.png";
 import saree2Img from "./assets/products/saree-2.png";
 import saree3Img from "./assets/products/saree-3.png";
 
+import api from "./api/apiClient";
+
 const imageMap = {
   saree1Img,
   saree2Img,
-  saree3Img
+  saree3Img,
 };
 const API_ORIGIN = "http://localhost:8000";
 
@@ -43,37 +45,46 @@ export default function App() {
   const [productsList, setProductsList] = useState([]);
   const [orders, setOrders] = useState([]);
 
-  // Pre-authenticated users databases
-  const [currentUser, setCurrentUser] = useState({
-    email: "customer@gmail.com",
-    name: "Aarati Nair",
-    role: "customer", // options: 'customer', 'b2b', 'admin'
-    b2bApproved: false
-  });
+  // Authenticated user state loaded dynamically from HTTP-only session cookie
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
-  const API_URL = "http://localhost:8000/api";
+  // Check active user session on startup via cookie
+  const checkSession = async () => {
+    try {
+      const user = await api.auth.getMe();
+      if (user && user.id) {
+        setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
+      }
+    } catch {
+      // Unauthenticated visitor
+      setCurrentUser(null);
+    } finally {
+      setAuthChecking(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${API_URL}/products`);
-      if (res.ok) {
-        const data = await res.json();
-        const mapped = data.map(p => ({
+      const data = await api.products.getAll();
+      if (Array.isArray(data)) {
+        const mapped = data.map((p) => ({
           ...p,
-          image: resolveProductImage(p.image)
+          image: resolveProductImage(p.image),
         }));
         setProductsList(mapped);
       }
     } catch (e) {
-      console.warn("Failed to fetch products from backend, using default assets:", e);
+      console.warn("Failed to fetch products from backend:", e);
     }
   };
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/orders`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.orders.getAll();
+      if (Array.isArray(data)) {
         setOrders(data);
       }
     } catch (e) {
@@ -83,16 +94,24 @@ export default function App() {
 
   // Run initial data sync
   useEffect(() => {
+    checkSession();
     fetchProducts();
     fetchOrders();
   }, []);
+
+  // Sync orders whenever user logs in or out
+  useEffect(() => {
+    if (currentUser) {
+      fetchOrders();
+    }
+  }, [currentUser]);
 
   // Set up Hash Router
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash || "#/";
       let route = "home";
-      
+
       if (hash.startsWith("#/shop")) route = "shop";
       else if (hash.startsWith("#/about")) route = "about";
       else if (hash.startsWith("#/contact")) route = "contact";
@@ -101,13 +120,12 @@ export default function App() {
       else if (hash.startsWith("#/checkout-success")) route = "checkout-success";
       else if (hash.startsWith("#/checkout")) route = "checkout";
       else if (hash.startsWith("#/admin")) route = "admin";
-      
+
       setCurrentTab(route);
       window.scrollTo(0, 0);
     };
 
     window.addEventListener("hashchange", handleHashChange);
-    // Initialize route on load
     handleHashChange();
 
     return () => window.removeEventListener("hashchange", handleHashChange);
@@ -127,8 +145,8 @@ export default function App() {
     setCart((prevCart) => {
       const existing = prevCart.find((item) => item.product.id === product.id);
       if (existing) {
-        return prevCart.map((item) => 
-          item.product.id === product.id 
+        return prevCart.map((item) =>
+          item.product.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
@@ -143,8 +161,8 @@ export default function App() {
       removeCartItem(productId);
       return;
     }
-    setCart((prevCart) => 
-      prevCart.map((item) => 
+    setCart((prevCart) =>
+      prevCart.map((item) =>
         item.product.id === productId ? { ...item, quantity } : item
       )
     );
@@ -165,10 +183,10 @@ export default function App() {
         return <Home setCurrentTab={setCurrentTab} addToCart={addToCart} products={productsList} />;
       case "shop":
         return (
-          <Shop 
-            addToCart={addToCart} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
+          <Shop
+            addToCart={addToCart}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             products={productsList}
           />
         );
@@ -178,28 +196,29 @@ export default function App() {
         return <Contact />;
       case "b2b":
         return (
-          <B2B 
-            currentUser={currentUser} 
-            setCurrentUser={setCurrentUser} 
-            setOrders={setOrders} 
+          <B2B
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            setOrders={setOrders}
           />
         );
       case "account":
         return (
-          <Account 
-            currentUser={currentUser} 
-            setCurrentUser={setCurrentUser} 
-            orders={orders} 
+          <Account
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            orders={orders}
             setCurrentTab={setCurrentTab}
+            fetchOrders={fetchOrders}
           />
         );
       case "checkout":
         return (
-          <Checkout 
-            cart={cart} 
-            clearCart={clearCart} 
-            currentUser={currentUser} 
-            setOrders={setOrders} 
+          <Checkout
+            cart={cart}
+            clearCart={clearCart}
+            currentUser={currentUser}
+            setOrders={setOrders}
             productsList={productsList}
             setProductsList={setProductsList}
             setCurrentTab={setCurrentTab}
@@ -208,7 +227,7 @@ export default function App() {
         );
       case "checkout-success":
         return (
-          <CheckoutSuccess 
+          <CheckoutSuccess
             setCurrentTab={setCurrentTab}
             fetchOrders={fetchOrders}
             clearCart={clearCart}
@@ -216,14 +235,15 @@ export default function App() {
         );
       case "admin":
         return (
-          <Admin 
-            currentUser={currentUser} 
-            orders={orders} 
-            setOrders={setOrders} 
+          <Admin
+            currentUser={currentUser}
+            orders={orders}
+            setOrders={setOrders}
             products={productsList}
             setProducts={setProductsList}
             fetchProducts={fetchProducts}
             fetchOrders={fetchOrders}
+            setCurrentTab={setCurrentTab}
           />
         );
       default:
@@ -234,11 +254,11 @@ export default function App() {
   return (
     <div className="app-container">
       {/* Navigation Header */}
-      <Header 
-        currentTab={currentTab} 
-        setCurrentTab={setCurrentTab} 
-        cart={cart} 
-        setCartOpen={setCartOpen} 
+      <Header
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        cart={cart}
+        setCartOpen={setCartOpen}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         currentUser={currentUser}
@@ -254,12 +274,12 @@ export default function App() {
       <Footer setCurrentTab={setCurrentTab} />
       <WhatsAppButton />
       <ScrollToTop />
-      <CartDrawer 
-        isOpen={cartOpen} 
-        onClose={() => setCartOpen(false)} 
-        cart={cart} 
-        updateQuantity={updateCartQuantity} 
-        removeItem={removeCartItem} 
+      <CartDrawer
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        cart={cart}
+        updateQuantity={updateCartQuantity}
+        removeItem={removeCartItem}
         setCurrentTab={setCurrentTab}
       />
     </div>

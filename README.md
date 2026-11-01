@@ -43,25 +43,30 @@ Sri Someshwara Silk Sarees (SS Silks) is a modern full-stack web application des
 Ensure you have **Python 3.12+** and **Node.js 18+** installed.
 
 ### 2. Backend Installation (FastAPI)
-Navigate to the root directory and install dependencies:
+From the project root, create and activate a virtual environment, then install dependencies:
 ```bash
-pip install -r backend/requirements.txt
+python -m venv .venv
+# PowerShell (Windows)
+.\.venv\Scripts\Activate.ps1
+pip install -r .\backend\requirements.txt
 ```
 
 Seed the local database with pre-configured products and users:
 ```bash
-python -m backend.seed
+cd backend
+python seed.py
 ```
 
 Start the local backend API server:
 ```bash
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 *API Docs available locally at:* http://127.0.0.1:8000/docs
 
 ### 3. Frontend Installation (Vite)
-Install package dependencies:
+Open a second terminal at the project root, then enter the frontend directory and install its dependencies:
 ```bash
+cd frontend
 npm install
 ```
 
@@ -70,6 +75,29 @@ Start the local development server:
 npm run dev
 ```
 *Frontend app running locally at:* http://localhost:5173/
+
+---
+
+## Project Structure
+
+```text
+PFS/
+├── frontend/            # React + Vite application
+│   ├── src/             # Pages, components, assets, and styles
+│   ├── public/          # Static public files
+│   ├── package.json
+│   └── vite.config.js
+├── backend/             # FastAPI application
+│   ├── main.py          # API entry point
+│   ├── database.py      # SQLAlchemy configuration
+│   ├── models.py
+│   ├── schemas.py
+│   ├── seed.py
+│   └── requirements.txt
+├── .venv/               # Local Python virtual environment (not committed)
+├── README.md
+└── vercel.json
+```
 
 ---
 

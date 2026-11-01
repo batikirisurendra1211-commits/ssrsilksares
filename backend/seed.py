@@ -2,14 +2,20 @@ from database import SessionLocal, engine, Base
 import models
 
 def seed_db():
-    # Recreate tables to clean start
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-
+    """
+    Seeds initial catalog sarees if the products table is empty.
+    Does NOT seed hardcoded accounts. Accounts are created dynamically
+    via /api/auth/register or python scripts/create_admin.py.
+    """
     db = SessionLocal()
 
     try:
-        # Seed Products
+        product_count = db.query(models.Product).count()
+        if product_count > 0:
+            print(f"Database already contains {product_count} products. Skipping seeding.")
+            return
+
+        print("Seeding initial saree catalog into PostgreSQL...")
         products = [
             models.Product(
                 id="ss-001",
@@ -140,43 +146,9 @@ def seed_db():
                 image="saree2Img"
             )
         ]
-        
-        # Seed Users
-        users = [
-            models.User(email="customer@gmail.com", name="Aarati Nair", role="customer", b2b_approved=False),
-            models.User(email="admin@sssilksarees.com", name="Store Owner", role="admin", b2b_approved=False),
-            models.User(email="bulk@sareeemporium.com", name="Bengaluru Saree Emporium", role="b2b", b2b_approved=True)
-        ]
-
-        # Seed Orders
-        orders = [
-            models.Order(
-                id="ORD-9281",
-                customer_name="Radha Murthy",
-                email="radha@yahoo.com",
-                items=[{"productName": "Classic Crimson Gadwal Semi Silk Saree", "quantity": 1, "price": 3499}],
-                total=3499,
-                status="Delivered",
-                date="2026-06-15",
-                type="B2C"
-            ),
-            models.Order(
-                id="ORD-4029",
-                customer_name="Bengaluru Saree Emporium (Bulk)",
-                email="bulk@sareeemporium.com",
-                items=[{"productName": "Mustard & Pink Gadwal Heritage Saree", "quantity": 20, "price": 2900}],
-                total=58000,
-                status="Shipped",
-                date="2026-06-18",
-                type="B2B"
-            )
-        ]
-
         db.add_all(products)
-        db.add_all(users)
-        db.add_all(orders)
         db.commit()
-        print("Database successfully seeded.")
+        print(f"Successfully seeded {len(products)} products into PostgreSQL.")
     except Exception as e:
         print(f"Error seeding database: {e}")
         db.rollback()
