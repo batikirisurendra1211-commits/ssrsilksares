@@ -1,21 +1,59 @@
 from database import SessionLocal, engine, Base
 import models
+from security import hash_password
+
+def seed_admin(db):
+    """
+    Seeds or updates the primary administrator account (suri@gmail.com).
+    """
+    try:
+        admin_email = "suri@gmail.com"
+        existing = db.query(models.User).filter(models.User.email == admin_email).first()
+        if not existing:
+            new_admin = models.User(
+                id="usr-admin-suri",
+                email=admin_email,
+                name="Suri",
+                hashed_password=hash_password("suri@1234"),
+                phone="+91 80734 28079",
+                role="admin",
+                is_active=True,
+                b2b_approved=True,
+                mfa_enabled=False
+            )
+            db.add(new_admin)
+            db.commit()
+            print(f"Admin account '{admin_email}' created successfully.")
+        else:
+            existing.name = "Suri"
+            existing.role = "admin"
+            existing.hashed_password = hash_password("suri@1234")
+            existing.is_active = True
+            existing.b2b_approved = True
+            existing.mfa_enabled = False
+            db.commit()
+            print(f"Admin account '{admin_email}' updated with latest admin credentials.")
+    except Exception as e:
+        print(f"Notice: Admin seeding check ({e})")
+        db.rollback()
 
 def seed_db():
     """
-    Seeds initial catalog sarees if the products table is empty.
-    Does NOT seed hardcoded accounts. Accounts are created dynamically
-    via /api/auth/register or python scripts/create_admin.py.
+    Seeds initial catalog sarees and administrator account.
     """
     db = SessionLocal()
 
     try:
+        # 1. Seed or verify Admin Account
+        seed_admin(db)
+
+        # 2. Seed Catalog Products
         product_count = db.query(models.Product).count()
         if product_count > 0:
-            print(f"Database already contains {product_count} products. Skipping seeding.")
+            print(f"Database already contains {product_count} products.")
             return
 
-        print("Seeding initial saree catalog into PostgreSQL...")
+        print("Seeding initial saree catalog into database...")
         products = [
             models.Product(
                 id="ss-001",
@@ -62,61 +100,61 @@ def seed_db():
                 description="A heritage mustard gold body paired with a traditional dark pink silk border and a grand pallu. A timeless design originating from Bengaluru weavers, suitable for pujas, housewarmings, and weddings.",
                 length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
                 weight="610 grams",
-                care="Dry Clean Only.",
+                care="Dry Clean Recommended.",
                 image="saree3Img"
             ),
             models.Product(
                 id="ss-004",
                 sku="SS-GW-CIC-004",
-                name="Peacock Blue Gadwal Semi Cicco Saree",
+                name="Royal Sapphire Blue Gadwal Semi Cicco Saree",
                 weave="Gadwal Semi Cicco",
                 fabric="Semi Cicco",
-                color="Peacock Blue",
-                occasion="Daily Wear",
-                price=2499,
-                stock=12,
-                description="Lightweight, everyday traditional wear Semi Cicco saree in royal peacock blue. Features a thin gold zari line border with red temple motifs. Breathable cotton-silk weave perfect for hot weather and long wear hours.",
-                length="6.3 Meters (5.5m Saree + 0.8m Contrast Blouse)",
-                weight="490 grams",
-                care="Gentle Hand Wash or Machine Wash in Cold Water.",
-                image="saree2Img"
+                color="Royal Blue",
+                occasion="Party Wear",
+                price=2999,
+                stock=3,
+                description="Drape in royal sophistication with this deep sapphire blue semi cicco saree featuring pure gold tested zari weaving along the border and a lightweight, breathable drape.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="540 grams",
+                care="Gentle Hand Wash / Dry in Shade.",
+                image="saree1Img"
             ),
             models.Product(
                 id="ss-005",
-                sku="SS-KP-SLK-005",
-                name="Royal Violet Kanchipuram Style Semi Silk",
-                weave="Kanchipuram Style",
+                sku="SS-GW-SLK-005",
+                name="Rani Pink & Gold Brocade Gadwal Saree",
+                weave="Gadwal Semi Silk",
                 fabric="Semi Silk",
-                color="Violet",
-                occasion="Wedding Wear",
-                price=4999,
-                stock=3,
-                description="A grand Kanchipuram style semi-silk saree with heavy brocade weaving across the body. The contrasting orange zari-woven pallu depicts traditional checks, mango buttis, and elephant motifs.",
-                length="6.3 Meters (5.5m Saree + 0.8m Orange Blouse)",
-                weight="690 grams",
-                care="Dry Clean Only. Iron on reverse side of zari.",
-                image="saree1Img"
+                color="Pink",
+                occasion="Bridal & Wedding",
+                price=4299,
+                stock=2,
+                description="A celebration of rich Indian heritage, this Rani pink saree showcases dense gold floral brocade throughout the pallu and contrasting emerald green borders.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="640 grams",
+                care="Dry Clean Recommended.",
+                image="saree2Img"
             ),
             models.Product(
                 id="ss-006",
                 sku="SS-GW-CIC-006",
-                name="Tangerine Orange Gadwal Semi Cicco",
+                name="Sunlit Yellow & Teal Gadwal Sico Saree",
                 weave="Gadwal Semi Cicco",
                 fabric="Semi Cicco",
-                color="Orange",
-                occasion="Festive Wear",
-                price=2999,
-                stock=0,
-                description="A glowing tangerine orange body contrasted with a bottle green border. This semi-cicco piece showcases our signature Bengaluru weaver borders, combining durability with standard handloom elegance.",
-                length="6.3 Meters (5.5m Saree + 0.8m Green Blouse)",
-                weight="510 grams",
-                care="Dry Clean Recommended for the first wash, followed by mild hand wash.",
+                color="Yellow",
+                occasion="Haldi & Festive",
+                price=2699,
+                stock=6,
+                description="Vibrant haldi yellow hue complemented by a striking teal blue border with temple zari geometric patterns. Perfect for daytime rituals and lightweight all-day comfort.",
+                length="6.3 Meters (5.5m Saree + 0.8m Running Blouse)",
+                weight="500 grams",
+                care="Gentle Hand Wash.",
                 image="saree3Img"
             ),
             models.Product(
                 id="ss-007",
                 sku="SS-GW-SLK-007",
-                name="Midnight Black Gold Border Semi Silk",
+                name="Midnight Black & Gold Tissue Gadwal Saree",
                 weave="Gadwal Semi Silk",
                 fabric="Semi Silk",
                 color="Black",
@@ -148,7 +186,7 @@ def seed_db():
         ]
         db.add_all(products)
         db.commit()
-        print(f"Successfully seeded {len(products)} products into PostgreSQL.")
+        print(f"Successfully seeded {len(products)} products into database.")
     except Exception as e:
         print(f"Error seeding database: {e}")
         db.rollback()
