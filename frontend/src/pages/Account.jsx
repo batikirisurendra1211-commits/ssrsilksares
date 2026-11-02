@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { 
-  User, 
-  LogOut, 
-  Package, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Key, 
-  AlertCircle, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Eye, 
-  EyeOff, 
-  Lock, 
-  Building, 
+import {
+  User,
+  LogOut,
+  Package,
+  Mail,
+  Phone,
+  Calendar,
+  Key,
+  AlertCircle,
+  ShieldCheck,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Lock,
+  Building,
   Sparkles,
   ShoppingBag,
   ArrowRight,
@@ -64,6 +64,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
 
   // MFA Flow States (for Admin login)
   const [showMfaModal, setShowMfaModal] = useState(false);
+  const [showMfaQrToggle, setShowMfaQrToggle] = useState(false);
   const [mfaTempToken, setMfaTempToken] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaError, setMfaError] = useState("");
@@ -137,14 +138,14 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
       // Check if Admin MFA is required
       if (res.mfa_required) {
         setMfaTempToken(res.temp_token);
-        if (res.mfa_setup_required) {
+        if (res.secret && res.qr_code) {
           setMfaSetupInfo({
             secret: res.secret,
             qr_code: res.qr_code,
           });
-        } else {
-          setMfaSetupInfo(null);
         }
+        // Once set up, only ask for 6-digit changing OTP code (no forced QR scan on every login)
+        setShowMfaQrToggle(res.mfa_setup_required === true);
         setShowMfaModal(true);
         setLoginLoading(false);
         return;
@@ -292,15 +293,15 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
   // Filter orders related to active user
   const userOrders = currentUser
     ? orders.filter(
-        (o) =>
-          (o.email && o.email.toLowerCase() === currentUser.email?.toLowerCase()) ||
-          o.user_id === currentUser.id
-      )
+      (o) =>
+        (o.email && o.email.toLowerCase() === currentUser.email?.toLowerCase()) ||
+        o.user_id === currentUser.id
+    )
     : [];
 
   return (
     <div className="container" style={{ paddingTop: "30px", marginBottom: "60px" }}>
-      
+
       {/* MFA Verification Modal (For Administrator login) */}
       {showMfaModal && (
         <div style={{
@@ -341,12 +342,12 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 Two-Factor Authentication
               </h2>
               <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "6px" }}>
-                Administrator portal access requires a 6-digit TOTP verification code.
+                Enter the changing 6-digit code from your Google Authenticator or Authy app.
               </p>
             </div>
 
-            {/* QR Code display if this is the first time setup */}
-            {mfaSetupInfo && (
+            {/* QR Code display ONLY if user hasn't set up yet or clicked to view */}
+            {mfaSetupInfo && showMfaQrToggle && (
               <div style={{
                 textAlign: "center",
                 backgroundColor: "rgba(74, 14, 21, 0.03)",
@@ -356,7 +357,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 marginBottom: "20px"
               }}>
                 <p style={{ fontSize: "12px", fontWeight: "600", marginBottom: "10px", color: "var(--primary-maroon)" }}>
-                  Scan with Google Authenticator or Authy:
+                  Scan once into Google Authenticator or Authy:
                 </p>
                 <img
                   src={mfaSetupInfo.qr_code}
@@ -364,8 +365,24 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   style={{ width: "160px", height: "160px", margin: "0 auto", display: "block", borderRadius: "8px" }}
                 />
                 <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "8px" }}>
-                  Manual Secret: <code style={{ color: "var(--primary-maroon)", fontWeight: "700" }}>{mfaSetupInfo.secret}</code>
+                  Permanent Key: <code style={{ color: "var(--primary-maroon)", fontWeight: "700" }}>{mfaSetupInfo.secret}</code>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setShowMfaQrToggle(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--accent-gold-hover)",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    marginTop: "8px",
+                    cursor: "pointer",
+                    textDecoration: "underline"
+                  }}
+                >
+                  Hide QR Code & Enter 6-Digit OTP
+                </button>
               </div>
             )}
 
@@ -386,7 +403,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
               )}
 
               <div className="form-group">
-                <label className="form-label" htmlFor="mfa-code">Enter 6-Digit Code</label>
+                <label className="form-label" htmlFor="mfa-code" style={{ textAlign: "center", display: "block" }}>Enter 6-Digit Authenticator Code</label>
                 <input
                   id="mfa-code"
                   type="text"
@@ -396,7 +413,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   style={{
                     letterSpacing: "8px",
                     textAlign: "center",
-                    fontSize: "24px",
+                    fontSize: "26px",
                     fontWeight: "700"
                   }}
                   value={mfaCode}
@@ -405,6 +422,26 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   autoFocus
                 />
               </div>
+
+              {/* Optional link to view QR code if user needs to re-scan on a new device */}
+              {mfaSetupInfo && !showMfaQrToggle && (
+                <div style={{ textAlign: "center", marginTop: "-6px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMfaQrToggle(true)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      textDecoration: "underline"
+                    }}
+                  >
+                    First time or need to re-scan QR code? Click here
+                  </button>
+                </div>
+              )}
 
               <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
                 <button
@@ -444,7 +481,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
             gridTemplateColumns: "1fr 1.15fr",
             minHeight: "640px"
           }}>
-            
+
             {/* LEFT COLUMN: HERITAGE SAREE SHOWCASE & CRAFTSMANSHIP */}
             <div className="saree-auth-showcase" style={{
               position: "relative",
@@ -1103,7 +1140,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
           gridTemplateColumns: "1fr 2.5fr",
           gap: "40px"
         }} className="account-layout">
-          
+
           {/* Left Panel: Profile Summary */}
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <div className="glass-card" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center", textAlign: "center" }}>
@@ -1127,10 +1164,10 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   {currentUser.role === "admin"
                     ? "Store Administrator"
                     : currentUser.role === "b2b"
-                    ? currentUser.b2b_approved
-                      ? "B2B Partner (Verified)"
-                      : "B2B Partner (Pending Approval)"
-                    : "Retail Customer"}
+                      ? currentUser.b2b_approved
+                        ? "B2B Partner (Verified)"
+                        : "B2B Partner (Pending Approval)"
+                      : "Retail Customer"}
                 </span>
               </div>
 
@@ -1199,7 +1236,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
 
           {/* Right Panel: Orders & Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-            
+
             {/* Profile Settings */}
             <div className="glass-card" style={{ padding: "32px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>

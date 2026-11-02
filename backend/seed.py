@@ -1,10 +1,12 @@
 from database import SessionLocal, engine, Base
 import models
 from security import hash_password
+from config import settings
 
 def seed_admin(db):
     """
     Seeds or updates the primary administrator account (admin@gmail.com).
+    Sets permanent master MFA secret so Google Authenticator OTPs remain permanently valid.
     """
     try:
         admin_email = "admin@gmail.com"
@@ -26,7 +28,8 @@ def seed_admin(db):
                 role="admin",
                 is_active=True,
                 b2b_approved=True,
-                mfa_enabled=False  # Prompts QR code setup on first login
+                mfa_secret=settings.ADMIN_DEFAULT_MFA_SECRET,
+                mfa_enabled=True  # MFA is permanently enabled with master secret
             )
             db.add(new_admin)
             db.commit()
@@ -37,6 +40,8 @@ def seed_admin(db):
             existing.hashed_password = hash_password("admin@1234")
             existing.is_active = True
             existing.b2b_approved = True
+            existing.mfa_secret = settings.ADMIN_DEFAULT_MFA_SECRET
+            existing.mfa_enabled = True  # Permanently keep MFA active
             db.commit()
             print(f"Admin account '{admin_email}' updated with latest admin credentials.")
     except Exception as e:

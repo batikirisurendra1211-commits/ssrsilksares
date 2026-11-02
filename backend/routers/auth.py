@@ -224,25 +224,16 @@ def login(
 
     # --- ADMIN MFA FLOW (Enforced Multi-Factor Authentication) ---
     if user.role == "admin":
-        if user.mfa_enabled:
-            if not payload.mfa_code:
-                temp_token = create_temp_mfa_token(user.id, is_setup=False)
-                record_audit(
-                    db=db,
-                    request=request,
-                    action="ADMIN_LOGIN_MFA_PROMPT",
-                    resource="/api/auth/login",
-                    user=user,
-                    details={"status": "Awaiting 2FA TOTP code"}
-                )
-                return {
-                    "mfa_required": True,
-                    "mfa_setup_required": False,
-                    "temp_token": temp_token,
-                    "message": "Two-factor authentication code required for admin login."
-                }
+        # Ensure admin has the permanent master MFA secret
+        if not user.mfa_secret:
+            user.mfa_secret = settings.ADMIN_DEFAULT_MFA_SECRET
+            db.commit()
 
-            # Direct code verification if passed in payload
+        totp_uri = get_totp_uri(user.mfa_secret, user.email)
+        qr_code_b64 = generate_qr_base64(totp_uri)
+
+        # Check if direct code was provided in login request
+        if payload.mfa_code:
             if not verify_totp_code(user.mfa_secret, payload.mfa_code):
                 record_audit(
                     db=db,
@@ -256,32 +247,25 @@ def login(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid MFA verification code."
                 )
+            # Verified via direct code! Fall through to issue JWT cookie
         else:
-            # 2. Admin whose MFA is not yet activated -> prompt MFA QR setup
-            if not user.mfa_secret:
-                user.mfa_secret = generate_totp_secret()
-                db.commit()
-
-            totp_uri = get_totp_uri(user.mfa_secret, user.email)
-            qr_code_b64 = generate_qr_base64(totp_uri)
-            temp_token = create_temp_mfa_token(user.id, is_setup=True)
-
+            # Need 6-digit TOTP code from Authenticator app
+            temp_token = create_temp_mfa_token(user.id, is_setup=not user.mfa_enabled)
             record_audit(
                 db=db,
                 request=request,
-                action="ADMIN_MFA_SETUP_PROMPT",
+                action="ADMIN_LOGIN_MFA_PROMPT",
                 resource="/api/auth/login",
                 user=user,
-                details={"status": "QR Code generated for 2FA onboarding"}
+                details={"status": "Awaiting 2FA TOTP code"}
             )
-
             return {
                 "mfa_required": True,
-                "mfa_setup_required": True,
+                "mfa_setup_required": not user.mfa_enabled,
                 "temp_token": temp_token,
                 "secret": user.mfa_secret,
                 "qr_code": qr_code_b64,
-                "message": "Admin MFA setup required. Scan QR code and enter 6-digit code to complete login."
+                "message": "Enter the 6-digit code from Google Authenticator to complete login."
             }
 
     # --- NORMAL USER / VERIFIED ADMIN: Issue JWT Cookie ---

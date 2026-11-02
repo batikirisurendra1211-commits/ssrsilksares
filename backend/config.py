@@ -27,8 +27,9 @@ class Settings:
     COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
     COOKIE_HTTPONLY: bool = os.getenv("COOKIE_HTTPONLY", "True").lower() in ("true", "1", "t")
     
-    # Admin Setup
+    # Admin Setup & MFA
     ADMIN_SETUP_SECRET: str = os.getenv("ADMIN_SETUP_SECRET", "ss_super_secret_bootstrap_key_2026")
+    ADMIN_DEFAULT_MFA_SECRET: str = os.getenv("ADMIN_DEFAULT_MFA_SECRET", "EPFEBDCHRGD4GCJU53Z5XDVE5QGSR5U5")
     
     # Stripe
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "sk_test_placeholder")
