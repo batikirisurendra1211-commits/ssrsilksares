@@ -269,7 +269,7 @@ export default function Contact() {
                   className="form-input" 
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Aarati Nair"
+                  placeholder="Enter your full name"
                 />
                 {errors.name && <span className="form-error">{errors.name}</span>}
               </div>
@@ -283,7 +283,7 @@ export default function Contact() {
                   className="form-input" 
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="e.g. customer@example.com"
+                  placeholder="Enter your email address"
                 />
                 {errors.email && <span className="form-error">{errors.email}</span>}
               </div>
@@ -297,7 +297,7 @@ export default function Contact() {
                   className="form-input" 
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="e.g. +91 98765 43210"
+                  placeholder="Enter your phone number"
                 />
                 {errors.phone && <span className="form-error">{errors.phone}</span>}
               </div>

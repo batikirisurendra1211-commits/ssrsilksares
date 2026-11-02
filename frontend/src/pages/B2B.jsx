@@ -201,7 +201,7 @@ export default function B2B({ currentUser, setCurrentUser, setOrders }) {
                   className="form-input"
                   value={formData.contactName}
                   onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  placeholder="e.g. Aarati Nair"
+                  placeholder="Enter contact person name"
                   required
                 />
               </div>
@@ -213,7 +213,7 @@ export default function B2B({ currentUser, setCurrentUser, setOrders }) {
                   className="form-input"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="e.g. +91 XXXXXXXXXX"
+                  placeholder="Enter WhatsApp contact number"
                   required
                 />
               </div>

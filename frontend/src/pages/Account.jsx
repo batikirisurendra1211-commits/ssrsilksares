@@ -347,7 +347,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
               Sri Someshwara Silks
             </h2>
             <p style={{ fontSize: "13px", opacity: 0.9, marginTop: "4px" }}>
-              Customer Portal & Wholesale B2B Rates
+              Customer Account Portal
             </p>
           </div>
 
@@ -499,57 +499,6 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 </div>
               )}
 
-              {/* Account Type Selector */}
-              <div className="form-group">
-                <label className="form-label">I am registering as:</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <label style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: regAccountType === "customer" ? "2px solid var(--accent-gold)" : "1px solid var(--border-light)",
-                    backgroundColor: regAccountType === "customer" ? "rgba(212,175,55,0.06)" : "transparent",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    fontWeight: regAccountType === "customer" ? "700" : "500"
-                  }}>
-                    <input
-                      type="radio"
-                      name="account_type"
-                      value="customer"
-                      checked={regAccountType === "customer"}
-                      onChange={() => setRegAccountType("customer")}
-                      style={{ accentColor: "var(--primary-maroon)" }}
-                    />
-                    Retail Shopper
-                  </label>
-                  <label style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: regAccountType === "b2b" ? "2px solid var(--accent-gold)" : "1px solid var(--border-light)",
-                    backgroundColor: regAccountType === "b2b" ? "rgba(212,175,55,0.06)" : "transparent",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    fontWeight: regAccountType === "b2b" ? "700" : "500"
-                  }}>
-                    <input
-                      type="radio"
-                      name="account_type"
-                      value="b2b"
-                      checked={regAccountType === "b2b"}
-                      onChange={() => setRegAccountType("b2b")}
-                      style={{ accentColor: "var(--primary-maroon)" }}
-                    />
-                    Wholesale B2B
-                  </label>
-                </div>
-              </div>
-
               {/* Name */}
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-name">Full Name *</label>
@@ -559,7 +508,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   className="form-input"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="e.g. Aarati Nair"
+                  placeholder="Enter your full name"
                   required
                 />
               </div>
@@ -573,7 +522,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   className="form-input"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="e.g. name@example.com"
+                  placeholder="Enter your email address"
                   required
                 />
               </div>
@@ -587,7 +536,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   className="form-input"
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
-                  placeholder="e.g. +91 98765 43210"
+                  placeholder="Enter your phone number"
                 />
               </div>
 
@@ -600,7 +549,7 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   className="form-input"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Choose a strong password"
+                  placeholder="Create a secure password"
                   required
                 />
               </div>
