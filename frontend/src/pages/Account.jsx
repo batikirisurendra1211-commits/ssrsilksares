@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import api from "../api/apiClient";
 import bannerWedding from "../assets/banners/wedding.png";
-import saree1Img from "../assets/products/saree-1.png";
 
 export default function Account({ currentUser, setCurrentUser, orders, setCurrentTab, fetchOrders, addToCart }) {
   // Mode: "login" or "register"
@@ -550,51 +549,6 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 }}>
                   Generational pitloom craftsmanship of Gadwal Semi Silk and Semi Sicco sarees. Direct from our looms to your wardrobe with zero middleman markups.
                 </p>
-              </div>
-
-              {/* Middle: Signature Saree Preview Card */}
-              <div style={{
-                position: "relative",
-                zIndex: 2,
-                margin: "24px 0",
-                backgroundColor: "rgba(0, 0, 0, 0.4)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(212, 175, 55, 0.35)",
-                borderRadius: "var(--radius-md)",
-                padding: "16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "16px"
-              }}>
-                <div style={{
-                  width: "72px",
-                  height: "88px",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  flexShrink: 0,
-                  border: "1px solid rgba(212, 175, 55, 0.5)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)"
-                }}>
-                  <img
-                    src={saree1Img}
-                    alt="Gadwal Semi Silk Saree"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontSize: "10px", color: "var(--accent-gold)", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
-                    Signature Pitloom Weave
-                  </div>
-                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#ffffff", marginTop: "2px" }}>
-                    Classic Crimson Gadwal Semi Silk
-                  </div>
-                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", marginTop: "2px" }}>
-                    Contrast golden tissue border & rich temple pallu
-                  </div>
-                  <div style={{ fontSize: "13px", fontWeight: "800", color: "var(--accent-gold)", marginTop: "4px" }}>
-                    ₹3,499 <span style={{ fontSize: "11px", opacity: 0.7, fontWeight: "normal", color: "#ffffff" }}>Direct Loom Price</span>
-                  </div>
-                </div>
               </div>
 
               {/* Bottom: Trust highlights */}
