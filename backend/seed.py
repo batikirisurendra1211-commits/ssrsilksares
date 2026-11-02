@@ -15,7 +15,7 @@ def seed_admin(db):
                 email=admin_email,
                 name="Suri",
                 hashed_password=hash_password("suri@1234"),
-                phone="+91 80734 28079",
+                phone="+918121191577",
                 role="admin",
                 is_active=True,
                 b2b_approved=True,
@@ -27,6 +27,7 @@ def seed_admin(db):
         else:
             existing.name = "Suri"
             existing.role = "admin"
+            existing.phone = "+918121191577"
             existing.hashed_password = hash_password("suri@1234")
             existing.is_active = True
             existing.b2b_approved = True
