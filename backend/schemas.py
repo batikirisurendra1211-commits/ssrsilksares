@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
     account_type: str = Field("customer", description="'customer' or 'b2b'")
 
 class UserLoginRequest(BaseModel):
-    email: EmailStr
+    email: str = Field(..., description="Email address or phone number")
     password: str
     mfa_code: Optional[str] = None  # 6-digit TOTP code for admin MFA
 

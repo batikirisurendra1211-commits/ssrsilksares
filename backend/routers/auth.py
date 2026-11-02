@@ -178,14 +178,28 @@ def login(
     - Admin users: MFA enforcement. If MFA is active, checks mfa_code or returns mfa_required with temp_token.
     Logs each attempt with IP and Device.
     """
-    user = db.query(models.User).filter(models.User.email == payload.email.lower()).first()
+    identifier = payload.email.strip()
+    clean_email = identifier.lower()
+    clean_phone = identifier.replace(" ", "").replace("-", "")
+
+    user = db.query(models.User).filter(
+        (models.User.email == clean_email) | 
+        (models.User.phone == identifier) | 
+        (models.User.phone == clean_phone)
+    ).first()
+
+    # Fallback match by last 10 digits if phone number
+    if not user and len(clean_phone) >= 10:
+        phone_suffix = clean_phone[-10:]
+        user = db.query(models.User).filter(models.User.phone.like(f"%{phone_suffix}")).first()
+
     if not user or not verify_password(payload.password, user.hashed_password):
         record_audit(
             db=db,
             request=request,
             action="LOGIN_FAILED",
             resource="/api/auth/login",
-            user_email=payload.email.lower(),
+            user_email=identifier,
             user_role="unknown",
             details={"reason": "Invalid credentials"}
         )

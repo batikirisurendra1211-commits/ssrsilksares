@@ -360,7 +360,12 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
           }}>
             <button
               type="button"
-              onClick={() => { setAuthMode("login"); setLoginError(""); }}
+              onClick={() => {
+                setAuthMode("login");
+                setLoginError("");
+                setLoginEmail("");
+                setLoginPassword("");
+              }}
               style={{
                 padding: "14px",
                 border: "none",
@@ -376,7 +381,14 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
             </button>
             <button
               type="button"
-              onClick={() => { setAuthMode("register"); setRegError(""); }}
+              onClick={() => {
+                setAuthMode("register");
+                setRegError("");
+                setRegName("");
+                setRegEmail("");
+                setRegPhone("");
+                setRegPassword("");
+              }}
               style={{
                 padding: "14px",
                 border: "none",
@@ -394,7 +406,11 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
 
           {authMode === "login" ? (
             /* --- SIGN IN FORM --- */
-            <form onSubmit={handleLoginSubmit} style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "20px" }}>
+            <form onSubmit={handleLoginSubmit} autoComplete="off" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Decoy hidden inputs to absorb browser autofill */}
+              <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+              <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+
               {loginError && (
                 <div style={{
                   backgroundColor: "rgba(220, 38, 38, 0.08)",
@@ -411,15 +427,17 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
               )}
 
               <div className="form-group">
-                <label className="form-label" htmlFor="login-email">Email Address</label>
+                <label className="form-label" htmlFor="login-email">Email Address or Phone Number</label>
                 <div style={{ position: "relative" }}>
                   <input
                     id="login-email"
-                    type="email"
+                    name="ss_auth_identifier"
+                    type="text"
+                    autoComplete="off"
                     className="form-input"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="Enter your registered email"
+                    placeholder="Enter registered email or phone"
                     required
                     style={{ paddingLeft: "38px" }}
                   />
@@ -432,7 +450,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 <div style={{ position: "relative" }}>
                   <input
                     id="login-password"
+                    name="ss_auth_secret_key"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     className="form-input"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
@@ -474,7 +494,13 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 Don't have an account yet?{" "}
                 <button
                   type="button"
-                  onClick={() => setAuthMode("register")}
+                  onClick={() => {
+                    setAuthMode("register");
+                    setRegName("");
+                    setRegEmail("");
+                    setRegPhone("");
+                    setRegPassword("");
+                  }}
                   style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer" }}
                 >
                   Register here
@@ -483,7 +509,11 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
             </form>
           ) : (
             /* --- REGISTRATION FORM --- */
-            <form onSubmit={handleRegisterSubmit} style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            <form onSubmit={handleRegisterSubmit} autoComplete="off" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "18px" }}>
+              {/* Decoy hidden inputs to absorb browser autofill */}
+              <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+              <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+
               {regError && (
                 <div style={{
                   backgroundColor: "rgba(220, 38, 38, 0.08)",
@@ -504,7 +534,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 <label className="form-label" htmlFor="reg-name">Full Name *</label>
                 <input
                   id="reg-name"
+                  name="ss_reg_user_name"
                   type="text"
+                  autoComplete="off"
                   className="form-input"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
@@ -518,7 +550,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 <label className="form-label" htmlFor="reg-email">Email Address *</label>
                 <input
                   id="reg-email"
+                  name="ss_reg_user_mail"
                   type="email"
+                  autoComplete="off"
                   className="form-input"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
@@ -532,7 +566,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 <label className="form-label" htmlFor="reg-phone">Phone Number (with Country Code)</label>
                 <input
                   id="reg-phone"
+                  name="ss_reg_user_tel"
                   type="tel"
+                  autoComplete="off"
                   className="form-input"
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
@@ -545,7 +581,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 <label className="form-label" htmlFor="reg-password">Create Password (min. 6 characters) *</label>
                 <input
                   id="reg-password"
+                  name="ss_reg_new_pwd"
                   type="password"
+                  autoComplete="new-password"
                   className="form-input"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
@@ -567,7 +605,11 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                 Already have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setAuthMode("login")}
+                  onClick={() => {
+                    setAuthMode("login");
+                    setLoginEmail("");
+                    setLoginPassword("");
+                  }}
                   style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer" }}
                 >
                   Sign In
