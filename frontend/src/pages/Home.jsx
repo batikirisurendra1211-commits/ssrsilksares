@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Eye,
   PhoneCall,
-  X as CloseIcon
+  X as CloseIcon,
+  Plus
 } from "lucide-react";
 
 const InstagramIcon = () => (
@@ -42,8 +43,8 @@ import bannerWeaver from "../assets/banners/weaver.png";
 import introHeroImg from "../assets/banners/intro-hero.png";
 
 export default function Home({ setCurrentTab, addToCart, products }) {
-  // Opening Intro Animation State
-  const [showIntro, setShowIntro] = useState(true);
+  // Opening Intro Animation State (starts false so sarees show immediately upon entering)
+  const [showIntro, setShowIntro] = useState(false);
 
   // Carousel State
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -1280,9 +1281,10 @@ export default function Home({ setCurrentTab, addToCart, products }) {
                           if (prod) addToCart(prod, 1);
                         }}
                         className="btn btn-gold"
-                        style={{ padding: "10px 20px", fontSize: "12px", minHeight: "auto", whiteSpace: "nowrap" }}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "10px 20px", fontSize: "12px", minHeight: "auto", whiteSpace: "nowrap" }}
                       >
-                        Add to Bag
+                        <Plus size={16} strokeWidth={2.5} />
+                        <span>Add to Bag</span>
                       </button>
                     </div>
                   </div>
@@ -1380,9 +1382,10 @@ export default function Home({ setCurrentTab, addToCart, products }) {
                       if (prod) addToCart(prod, 1);
                     }}
                     className="btn btn-primary"
-                    style={{ padding: "8px 16px", fontSize: "13px", minHeight: "auto" }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", fontSize: "13px", minHeight: "auto" }}
                   >
-                    Add Saree
+                    <Plus size={16} strokeWidth={2.5} />
+                    <span>Add Saree</span>
                   </button>
                 </div>
               </motion.div>
@@ -1472,8 +1475,23 @@ export default function Home({ setCurrentTab, addToCart, products }) {
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", flexGrow: 1 }}>{product.description.substring(0, 95)}...</p>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-light)", paddingTop: "12px", marginTop: "12px" }}>
                   <span style={{ fontSize: "18px", fontWeight: "800", color: "var(--primary-maroon)" }} className="price-tag">₹{product.price}</span>
-                  <button onClick={() => addToCart(product, 1)} className="btn btn-primary" style={{ padding: "8px 16px", fontSize: "12px", minHeight: "auto" }}>
-                    Add
+                  <button
+                    onClick={() => addToCart(product, 1)}
+                    className="btn btn-primary"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      minHeight: "auto",
+                      borderRadius: "var(--radius-sm)"
+                    }}
+                    title="Add to Cart"
+                  >
+                    <Plus size={16} strokeWidth={2.5} />
+                    <span>Add</span>
                   </button>
                 </div>
               </div>

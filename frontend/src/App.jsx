@@ -28,11 +28,9 @@ const imageMap = {
   saree2Img,
   saree3Img,
 };
-const API_ORIGIN = "http://localhost:8000";
-
 const resolveProductImage = (image) => {
   if (image?.startsWith("http://") || image?.startsWith("https://")) return image;
-  if (image?.startsWith("/uploads/")) return `${API_ORIGIN}${image}`;
+  if (image?.startsWith("/uploads/")) return image;
   return imageMap[image] || saree1Img;
 };
 
@@ -99,10 +97,34 @@ export default function App() {
     fetchOrders();
   }, []);
 
-  // Sync orders whenever user logs in or out
+  // Sync orders and check for pending cart items whenever user logs in
   useEffect(() => {
     if (currentUser) {
       fetchOrders();
+      // Auto-add pending saree after login
+      const pendingRaw = sessionStorage.getItem("pending_cart_product");
+      if (pendingRaw) {
+        try {
+          const pendingProduct = JSON.parse(pendingRaw);
+          const qty = parseInt(sessionStorage.getItem("pending_cart_qty") || "1", 10);
+          sessionStorage.removeItem("pending_cart_product");
+          sessionStorage.removeItem("pending_cart_qty");
+          setCart((prevCart) => {
+            const existing = prevCart.find((item) => item.product.id === pendingProduct.id);
+            if (existing) {
+              return prevCart.map((item) =>
+                item.product.id === pendingProduct.id
+                  ? { ...item, quantity: item.quantity + qty }
+                  : item
+              );
+            }
+            return [...prevCart, { product: pendingProduct, quantity: qty }];
+          });
+          setCartOpen(true);
+        } catch (e) {
+          console.warn("Could not parse pending product:", e);
+        }
+      }
     }
   }, [currentUser]);
 
@@ -142,6 +164,19 @@ export default function App() {
 
   // Cart operations
   const addToCart = (product, quantity = 1) => {
+    // If not logged in, prompt user to login/register and navigate to Account page
+    if (!currentUser) {
+      try {
+        sessionStorage.setItem("pending_cart_product", JSON.stringify(product));
+        sessionStorage.setItem("pending_cart_qty", String(quantity));
+      } catch (err) {
+        console.warn("Storage warning:", err);
+      }
+      window.location.hash = "#/account";
+      setCurrentTab("account");
+      return;
+    }
+
     setCart((prevCart) => {
       const existing = prevCart.find((item) => item.product.id === product.id);
       if (existing) {
@@ -210,6 +245,7 @@ export default function App() {
             orders={orders}
             setCurrentTab={setCurrentTab}
             fetchOrders={fetchOrders}
+            addToCart={addToCart}
           />
         );
       case "checkout":

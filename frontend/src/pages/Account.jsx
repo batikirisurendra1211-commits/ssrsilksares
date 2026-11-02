@@ -1,8 +1,30 @@
-import React, { useState } from "react";
-import { User, LogOut, Package, Mail, Phone, Calendar, Key, AlertCircle, ShieldCheck, CheckCircle2, Eye, EyeOff, Lock, Building, Sparkles } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { 
+  User, 
+  LogOut, 
+  Package, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  Key, 
+  AlertCircle, 
+  ShieldCheck, 
+  CheckCircle2, 
+  Eye, 
+  EyeOff, 
+  Lock, 
+  Building, 
+  Sparkles,
+  ShoppingBag,
+  ArrowRight,
+  Check,
+  X
+} from "lucide-react";
 import api from "../api/apiClient";
+import bannerWedding from "../assets/banners/wedding.png";
+import saree1Img from "../assets/products/saree-1.png";
 
-export default function Account({ currentUser, setCurrentUser, orders, setCurrentTab, fetchOrders }) {
+export default function Account({ currentUser, setCurrentUser, orders, setCurrentTab, fetchOrders, addToCart }) {
   // Mode: "login" or "register"
   const [authMode, setAuthMode] = useState("login");
 
@@ -12,15 +34,33 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [loginTouched, setLoginTouched] = useState({ identifier: false, password: false });
 
   // Register Form States
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regPhone, setRegPhone] = useState("");
   const [regAccountType, setRegAccountType] = useState("customer");
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
+  const [regTouched, setRegTouched] = useState({ name: false, email: false, phone: false, password: false, confirmPassword: false });
+
+  // Pending cart item from clicking "+" on sarees before logging in
+  const [pendingCartItem, setPendingCartItem] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("pending_cart_product");
+      if (raw) {
+        setPendingCartItem(JSON.parse(raw));
+      }
+    } catch {
+      setPendingCartItem(null);
+    }
+  }, []);
 
   // MFA Flow States (for Admin login)
   const [showMfaModal, setShowMfaModal] = useState(false);
@@ -37,12 +77,53 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState("");
 
+  // ================= Form Validation Logic =================
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isEmailInput = (val) => val.includes("@");
+  const isValidPhone = (val) => val.replace(/\D/g, "").length >= 10;
+
+  // Login Validations
+  const loginIdentifierIsValid = loginEmail.trim().length > 0 && (
+    isEmailInput(loginEmail) ? emailRegex.test(loginEmail.trim()) : isValidPhone(loginEmail)
+  );
+  const loginPasswordIsValid = loginPassword.length >= 6;
+  const isLoginFormValid = loginIdentifierIsValid && loginPasswordIsValid;
+
+  // Register Validations
+  const regNameIsValid = regName.trim().length >= 2;
+  const regEmailIsValid = emailRegex.test(regEmail.trim());
+  const regPhoneIsValid = !regPhone.trim() || isValidPhone(regPhone);
+  const regPasswordIsValid = regPassword.length >= 6;
+  const regPasswordsMatch = regPassword === regConfirmPassword && regConfirmPassword.length > 0;
+  const isRegFormValid = regNameIsValid && regEmailIsValid && regPhoneIsValid && regPasswordIsValid && regPasswordsMatch;
+
+  // Password Strength Meter
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: "", color: "#e2e8f0" };
+    if (pwd.length < 6) return { score: 1, label: "Too short", color: "#dc2626" };
+    let score = 1;
+    if (pwd.length >= 8) score++;
+    if (/[0-9]/.test(pwd) && /[a-zA-Z]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+
+    if (score <= 2) return { score: 2, label: "Fair", color: "#d97706" };
+    if (score === 3) return { score: 3, label: "Good", color: "var(--accent-gold)" };
+    return { score: 4, label: "Strong", color: "#16a34a" };
+  };
+  const pwdStrength = getPasswordStrength(regPassword);
+
   // Handle Login Submit
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
+    setLoginTouched({ identifier: true, password: true });
     setLoginError("");
-    if (!loginEmail.trim() || !loginPassword.trim()) {
-      setLoginError("Please enter your email and password.");
+
+    if (!isLoginFormValid) {
+      if (!loginIdentifierIsValid) {
+        setLoginError("Please enter a valid email address or 10-digit phone number.");
+      } else if (!loginPasswordIsValid) {
+        setLoginError("Password must be at least 6 characters.");
+      }
       return;
     }
 
@@ -73,6 +154,15 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
       if (res.user) {
         setCurrentUser(res.user);
         if (fetchOrders) fetchOrders();
+
+        // Check if there was a pending saree waiting to be added to cart
+        if (pendingCartItem && addToCart) {
+          const qty = parseInt(sessionStorage.getItem("pending_cart_qty") || "1", 10);
+          sessionStorage.removeItem("pending_cart_product");
+          sessionStorage.removeItem("pending_cart_qty");
+          addToCart(pendingCartItem, qty);
+        }
+
         if (res.user.role === "admin") {
           setCurrentTab("admin");
           window.location.hash = "#/admin";
@@ -120,14 +210,14 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
   // Handle Register Submit
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    setRegTouched({ name: true, email: true, phone: true, password: true, confirmPassword: true });
     setRegError("");
 
-    if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
-      setRegError("Please fill in all required fields.");
-      return;
-    }
-    if (regPassword.length < 6) {
-      setRegError("Password must be at least 6 characters long.");
+    if (!isRegFormValid) {
+      if (!regNameIsValid) setRegError("Please enter your full name (minimum 2 characters).");
+      else if (!regEmailIsValid) setRegError("Please enter a valid email address.");
+      else if (!regPasswordIsValid) setRegError("Password must be at least 6 characters.");
+      else if (!regPasswordsMatch) setRegError("Passwords do not match.");
       return;
     }
 
@@ -144,6 +234,15 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
       if (newUser) {
         setCurrentUser(newUser);
         if (fetchOrders) fetchOrders();
+
+        // Check if there was a pending saree waiting to be added to cart
+        if (pendingCartItem && addToCart) {
+          const qty = parseInt(sessionStorage.getItem("pending_cart_qty") || "1", 10);
+          sessionStorage.removeItem("pending_cart_product");
+          sessionStorage.removeItem("pending_cart_qty");
+          addToCart(pendingCartItem, qty);
+        }
+
         if (newUser.role === "b2b") {
           setCurrentTab("b2b");
           window.location.hash = "#/b2b";
@@ -200,9 +299,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
     : [];
 
   return (
-    <div className="container" style={{ paddingTop: "40px", marginBottom: "60px" }}>
+    <div className="container" style={{ paddingTop: "30px", marginBottom: "60px" }}>
       
-      {/* MFA Verification Modal */}
+      {/* MFA Verification Modal (For Administrator login) */}
       {showMfaModal && (
         <div style={{
           position: "fixed",
@@ -331,314 +430,674 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
       )}
 
       {!currentUser ? (
-        /* Sign In / Register Panel */
-        <div style={{ maxWidth: "480px", margin: "0 auto" }} className="glass-card">
-          
-          {/* Header */}
-          <div style={{
-            padding: "28px 32px",
-            borderBottom: "1px solid var(--border-light)",
-            textAlign: "center",
-            backgroundColor: "var(--primary-maroon)",
-            color: "var(--bg-cream)",
-            borderRadius: "var(--radius-md) var(--radius-md) 0 0"
-          }}>
-            <h2 style={{ color: "var(--accent-gold)", fontFamily: "'Playfair Display', serif", fontSize: "26px" }}>
-              Sri Someshwara Silks
-            </h2>
-            <p style={{ fontSize: "13px", opacity: 0.9, marginTop: "4px" }}>
-              Customer Account Portal
-            </p>
-          </div>
-
-          {/* Mode Switcher Tabs */}
-          <div style={{
+        /* ================= SAREE-THEMED LUXURY LOGIN & SIGNUP PORTAL ================= */
+        <div className="saree-auth-container" style={{
+          maxWidth: "1040px",
+          margin: "0 auto",
+          borderRadius: "var(--radius-lg)",
+          overflow: "hidden",
+          boxShadow: "0 25px 50px -12px rgba(74, 14, 21, 0.25), 0 0 0 1px rgba(212, 175, 55, 0.25)",
+          backgroundColor: "var(--bg-white)"
+        }}>
+          <div className="saree-auth-grid" style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            borderBottom: "1px solid var(--border-light)",
-            backgroundColor: "rgba(0,0,0,0.02)"
+            gridTemplateColumns: "1fr 1.15fr",
+            minHeight: "640px"
           }}>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode("login");
-                setLoginError("");
-                setLoginEmail("");
-                setLoginPassword("");
-              }}
-              style={{
-                padding: "14px",
-                border: "none",
-                background: authMode === "login" ? "var(--bg-white)" : "transparent",
-                fontWeight: authMode === "login" ? "700" : "500",
-                color: authMode === "login" ? "var(--primary-maroon)" : "var(--text-muted)",
-                borderBottom: authMode === "login" ? "3px solid var(--accent-gold)" : "none",
-                cursor: "pointer",
-                transition: "all 0.2s"
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode("register");
-                setRegError("");
-                setRegName("");
-                setRegEmail("");
-                setRegPhone("");
-                setRegPassword("");
-              }}
-              style={{
-                padding: "14px",
-                border: "none",
-                background: authMode === "register" ? "var(--bg-white)" : "transparent",
-                fontWeight: authMode === "register" ? "700" : "500",
-                color: authMode === "register" ? "var(--primary-maroon)" : "var(--text-muted)",
-                borderBottom: authMode === "register" ? "3px solid var(--accent-gold)" : "none",
-                cursor: "pointer",
-                transition: "all 0.2s"
-              }}
-            >
-              Create Account
-            </button>
-          </div>
+            
+            {/* LEFT COLUMN: HERITAGE SAREE SHOWCASE & CRAFTSMANSHIP */}
+            <div className="saree-auth-showcase" style={{
+              position: "relative",
+              background: "linear-gradient(165deg, #32070c 0%, #4a0e15 45%, #1a0306 100%)",
+              color: "#ffffff",
+              padding: "48px 40px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              overflow: "hidden"
+            }}>
+              {/* Background saree texture */}
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                backgroundImage: `url(${bannerWedding})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                opacity: 0.22,
+                mixBlendMode: "luminosity",
+                pointerEvents: "none"
+              }} />
 
-          {authMode === "login" ? (
-            /* --- SIGN IN FORM --- */
-            <form onSubmit={handleLoginSubmit} autoComplete="off" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Decoy hidden inputs to absorb browser autofill */}
-              <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
-              <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+              {/* Gold light gradient overlay */}
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                background: "radial-gradient(circle at 85% 15%, rgba(212, 175, 55, 0.2) 0%, transparent 65%)",
+                pointerEvents: "none"
+              }} />
 
-              {loginError && (
+              {/* Top brand header */}
+              <div style={{ position: "relative", zIndex: 2 }}>
                 <div style={{
-                  backgroundColor: "rgba(220, 38, 38, 0.08)",
-                  color: "#dc2626",
-                  padding: "12px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "13px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  backgroundColor: "rgba(212, 175, 55, 0.15)",
+                  border: "1px solid rgba(212, 175, 55, 0.4)",
+                  padding: "6px 14px",
+                  borderRadius: "var(--radius-full)",
+                  marginBottom: "18px"
+                }}>
+                  <Sparkles size={14} style={{ color: "var(--accent-gold)" }} />
+                  <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "1.5px", color: "var(--accent-gold)", textTransform: "uppercase" }}>
+                    Authentic Bengaluru Looms
+                  </span>
+                </div>
+
+                <h1 style={{
+                  color: "#ffffff",
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "30px",
+                  lineHeight: "1.25",
+                  marginBottom: "12px"
+                }}>
+                  Sri Someshwara <br />
+                  <span style={{ color: "var(--accent-gold)" }}>Handloom Silk Sarees</span>
+                </h1>
+
+                <p style={{
+                  color: "rgba(255, 255, 255, 0.85)",
+                  fontSize: "14px",
+                  lineHeight: "1.6",
+                  maxWidth: "400px"
+                }}>
+                  Generational pitloom craftsmanship of Gadwal Semi Silk and Semi Sicco sarees. Direct from our looms to your wardrobe with zero middleman markups.
+                </p>
+              </div>
+
+              {/* Middle: Signature Saree Preview Card */}
+              <div style={{
+                position: "relative",
+                zIndex: 2,
+                margin: "24px 0",
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(212, 175, 55, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "16px"
+              }}>
+                <div style={{
+                  width: "72px",
+                  height: "88px",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  border: "1px solid rgba(212, 175, 55, 0.5)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.4)"
+                }}>
+                  <img
+                    src={saree1Img}
+                    alt="Gadwal Semi Silk Saree"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: "10px", color: "var(--accent-gold)", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
+                    Signature Pitloom Weave
+                  </div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#ffffff", marginTop: "2px" }}>
+                    Classic Crimson Gadwal Semi Silk
+                  </div>
+                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", marginTop: "2px" }}>
+                    Contrast golden tissue border & rich temple pallu
+                  </div>
+                  <div style={{ fontSize: "13px", fontWeight: "800", color: "var(--accent-gold)", marginTop: "4px" }}>
+                    ₹3,499 <span style={{ fontSize: "11px", opacity: 0.7, fontWeight: "normal", color: "#ffffff" }}>Direct Loom Price</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom: Trust highlights */}
+              <div style={{
+                position: "relative",
+                zIndex: 2,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+                borderTop: "1px solid rgba(212, 175, 55, 0.2)",
+                paddingTop: "20px"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255, 255, 255, 0.9)" }}>
+                  <CheckCircle2 size={16} style={{ color: "var(--accent-gold)", flexShrink: 0 }} />
+                  <span>100% Pitloom Weave</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255, 255, 255, 0.9)" }}>
+                  <CheckCircle2 size={16} style={{ color: "var(--accent-gold)", flexShrink: 0 }} />
+                  <span>Direct Factory Rates</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255, 255, 255, 0.9)" }}>
+                  <CheckCircle2 size={16} style={{ color: "var(--accent-gold)", flexShrink: 0 }} />
+                  <span>Pan-India Safe Delivery</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255, 255, 255, 0.9)" }}>
+                  <CheckCircle2 size={16} style={{ color: "var(--accent-gold)", flexShrink: 0 }} />
+                  <span>Verified B2B Wholesale</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: INTERACTIVE AUTHENTICATION PANEL */}
+            <div style={{
+              padding: "40px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              backgroundColor: "var(--bg-white)"
+            }}>
+
+              {/* Pending Cart Item Alert Banner (Shown when redirected after clicking "+ Add" on a saree) */}
+              {pendingCartItem && (
+                <div style={{
+                  backgroundColor: "rgba(212, 175, 55, 0.12)",
+                  border: "1px solid var(--accent-gold)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "14px 18px",
+                  marginBottom: "24px",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px"
+                  gap: "14px"
                 }}>
-                  <AlertCircle size={16} /> {loginError}
+                  <div style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(74, 14, 21, 0.1)",
+                    color: "var(--primary-maroon)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0
+                  }}>
+                    <ShoppingBag size={22} style={{ color: "var(--primary-maroon)" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "var(--primary-maroon)" }}>
+                      One Step to Add to Bag!
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      Please sign in or create an account to add <strong>"{pendingCartItem.name}"</strong> (₹{pendingCartItem.price}) to your cart.
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-email">Email Address or Phone Number</label>
-                <div style={{ position: "relative" }}>
-                  <input
-                    id="login-email"
-                    name="ss_auth_identifier"
-                    type="text"
-                    autoComplete="off"
-                    className="form-input"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="Enter registered email or phone"
-                    required
-                    style={{ paddingLeft: "38px" }}
-                    readOnly
-                    onFocus={(e) => e.target.removeAttribute('readonly')}
-                    onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                  />
-                  <Mail size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-password">Password</label>
-                <div style={{ position: "relative" }}>
-                  <input
-                    id="login-password"
-                    name="ss_auth_secret_key"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className="form-input"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    style={{ paddingLeft: "38px", paddingRight: "40px" }}
-                    readOnly
-                    onFocus={(e) => e.target.removeAttribute('readonly')}
-                    onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                  />
-                  <Lock size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: "absolute",
-                      right: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--text-muted)"
-                    }}
-                    aria-label="Toggle password visibility"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="btn btn-primary"
-                style={{ padding: "14px", fontWeight: "700" }}
-              >
-                {loginLoading ? "Authenticating..." : "Sign In to Account"}
-              </button>
-
-              <div style={{ textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
-                Don't have an account yet?{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("register");
-                    setRegName("");
-                    setRegEmail("");
-                    setRegPhone("");
-                    setRegPassword("");
-                  }}
-                  style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer" }}
-                >
-                  Register here
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* --- REGISTRATION FORM --- */
-            <form onSubmit={handleRegisterSubmit} autoComplete="off" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "18px" }}>
-              {/* Decoy hidden inputs to absorb browser autofill */}
-              <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
-              <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
-
-              {regError && (
-                <div style={{
-                  backgroundColor: "rgba(220, 38, 38, 0.08)",
-                  color: "#dc2626",
-                  padding: "12px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "13px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}>
-                  <AlertCircle size={16} /> {regError}
-                </div>
-              )}
-
-              {/* Name */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="reg-name">Full Name *</label>
-                <input
-                  id="reg-name"
-                  name="ss_reg_user_name"
-                  type="text"
-                  autoComplete="off"
-                  className="form-input"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Enter your full name"
-                  required
-                  readOnly
-                  onFocus={(e) => e.target.removeAttribute('readonly')}
-                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                />
-              </div>
-
-              {/* Email */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="reg-email">Email Address *</label>
-                <input
-                  id="reg-email"
-                  name="ss_reg_user_mail"
-                  type="email"
-                  autoComplete="off"
-                  className="form-input"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="Enter your email address"
-                  required
-                  readOnly
-                  onFocus={(e) => e.target.removeAttribute('readonly')}
-                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                />
-              </div>
-
-              {/* Phone */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="reg-phone">Phone Number (with Country Code)</label>
-                <input
-                  id="reg-phone"
-                  name="ss_reg_user_tel"
-                  type="tel"
-                  autoComplete="off"
-                  className="form-input"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  placeholder="Enter your phone number"
-                  readOnly
-                  onFocus={(e) => e.target.removeAttribute('readonly')}
-                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                />
-              </div>
-
-              {/* Password */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="reg-password">Create Password (min. 6 characters) *</label>
-                <input
-                  id="reg-password"
-                  name="ss_reg_new_pwd"
-                  type="password"
-                  autoComplete="new-password"
-                  className="form-input"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Create a secure password"
-                  required
-                  readOnly
-                  onFocus={(e) => e.target.removeAttribute('readonly')}
-                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={regLoading}
-                className="btn btn-primary"
-                style={{ padding: "14px", fontWeight: "700" }}
-              >
-                {regLoading ? "Creating Account..." : "Complete Registration"}
-              </button>
-
-              <div style={{ textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
-                Already have an account?{" "}
+              {/* Mode Switcher Tabs */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                backgroundColor: "rgba(74, 14, 21, 0.04)",
+                borderRadius: "var(--radius-md)",
+                padding: "4px",
+                marginBottom: "28px"
+              }}>
                 <button
                   type="button"
                   onClick={() => {
                     setAuthMode("login");
-                    setLoginEmail("");
-                    setLoginPassword("");
+                    setLoginError("");
+                    setLoginTouched({ identifier: false, password: false });
                   }}
-                  style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer" }}
+                  style={{
+                    padding: "12px",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    background: authMode === "login" ? "var(--bg-white)" : "transparent",
+                    fontWeight: authMode === "login" ? "800" : "600",
+                    fontSize: "14px",
+                    color: authMode === "login" ? "var(--primary-maroon)" : "var(--text-muted)",
+                    boxShadow: authMode === "login" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
                 >
                   Sign In
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("register");
+                    setRegError("");
+                    setRegTouched({ name: false, email: false, phone: false, password: false, confirmPassword: false });
+                  }}
+                  style={{
+                    padding: "12px",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    background: authMode === "register" ? "var(--bg-white)" : "transparent",
+                    fontWeight: authMode === "register" ? "800" : "600",
+                    fontSize: "14px",
+                    color: authMode === "register" ? "var(--primary-maroon)" : "var(--text-muted)",
+                    boxShadow: authMode === "register" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  Create Account
+                </button>
               </div>
-            </form>
-          )}
 
+              {authMode === "login" ? (
+                /* ================= SIGN IN FORM ================= */
+                <form onSubmit={handleLoginSubmit} autoComplete="off" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {/* Decoy hidden inputs to absorb browser autofill heuristics */}
+                  <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+                  <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+
+                  {loginError && (
+                    <div style={{
+                      backgroundColor: "rgba(220, 38, 38, 0.08)",
+                      border: "1px solid rgba(220, 38, 38, 0.2)",
+                      color: "#dc2626",
+                      padding: "12px 16px",
+                      borderRadius: "var(--radius-sm)",
+                      fontSize: "13px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px"
+                    }}>
+                      <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
+
+                  {/* Identifier: Email or Phone */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label className="form-label" htmlFor="login-email" style={{ margin: 0 }}>Email or Phone Number</label>
+                      {loginTouched.identifier && loginEmail.trim() && (
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: loginIdentifierIsValid ? "#16a34a" : "#dc2626" }}>
+                          {loginIdentifierIsValid ? "✓ Valid format" : isEmailInput(loginEmail) ? "Invalid email" : "Needs 10 digits"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="login-email"
+                        name="ss_auth_identifier"
+                        type="text"
+                        autoComplete="off"
+                        className="form-input"
+                        value={loginEmail}
+                        onChange={(e) => {
+                          setLoginEmail(e.target.value);
+                          if (!loginTouched.identifier) setLoginTouched(prev => ({ ...prev, identifier: true }));
+                        }}
+                        onBlur={() => setLoginTouched(prev => ({ ...prev, identifier: true }))}
+                        placeholder="Enter registered email or phone"
+                        required
+                        style={{
+                          paddingLeft: "40px",
+                          paddingRight: "36px",
+                          borderColor: loginTouched.identifier && loginEmail.trim() && !loginIdentifierIsValid ? "#dc2626" : undefined
+                        }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Mail size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                      {loginTouched.identifier && loginIdentifierIsValid && (
+                        <Check size={18} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label className="form-label" htmlFor="login-password" style={{ margin: 0 }}>Password</label>
+                      {loginTouched.password && loginPassword && !loginPasswordIsValid && (
+                        <span style={{ fontSize: "11px", color: "#dc2626", fontWeight: "600" }}>
+                          Min. 6 characters
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="login-password"
+                        name="ss_auth_secret_key"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        className="form-input"
+                        value={loginPassword}
+                        onChange={(e) => {
+                          setLoginPassword(e.target.value);
+                          if (!loginTouched.password) setLoginTouched(prev => ({ ...prev, password: true }));
+                        }}
+                        onBlur={() => setLoginTouched(prev => ({ ...prev, password: true }))}
+                        placeholder="Enter your password"
+                        required
+                        style={{
+                          paddingLeft: "40px",
+                          paddingRight: "44px",
+                          borderColor: loginTouched.password && loginPassword && !loginPasswordIsValid ? "#dc2626" : undefined
+                        }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Lock size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text-muted)",
+                          padding: "4px"
+                        }}
+                        aria-label="Toggle password visibility"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="btn btn-primary"
+                    style={{
+                      padding: "14px",
+                      fontWeight: "700",
+                      fontSize: "15px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      marginTop: "6px"
+                    }}
+                  >
+                    <span>{loginLoading ? "Authenticating..." : "Sign In to Account"}</span>
+                    <ArrowRight size={18} />
+                  </button>
+
+                  <div style={{ textAlign: "center", fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    New to Sri Someshwara Silks?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("register");
+                        setRegTouched({ name: false, email: false, phone: false, password: false, confirmPassword: false });
+                        setRegError("");
+                      }}
+                      style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      Create an Account
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* ================= REGISTRATION FORM ================= */
+                <form onSubmit={handleRegisterSubmit} autoComplete="off" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Decoy hidden inputs to absorb browser autofill heuristics */}
+                  <input type="text" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+                  <input type="password" style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} tabIndex="-1" readOnly autoComplete="off" />
+
+                  {regError && (
+                    <div style={{
+                      backgroundColor: "rgba(220, 38, 38, 0.08)",
+                      border: "1px solid rgba(220, 38, 38, 0.2)",
+                      color: "#dc2626",
+                      padding: "12px 16px",
+                      borderRadius: "var(--radius-sm)",
+                      fontSize: "13px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px"
+                    }}>
+                      <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>{regError}</span>
+                    </div>
+                  )}
+
+                  {/* Name */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label className="form-label" htmlFor="reg-name" style={{ margin: 0 }}>Full Name *</label>
+                      {regTouched.name && regName.trim() && !regNameIsValid && (
+                        <span style={{ fontSize: "11px", color: "#dc2626", fontWeight: "600" }}>Min. 2 characters</span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="reg-name"
+                        name="ss_reg_user_name"
+                        type="text"
+                        autoComplete="off"
+                        className="form-input"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, name: true }))}
+                        placeholder="Enter your full name"
+                        required
+                        style={{ paddingLeft: "38px" }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <User size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label className="form-label" htmlFor="reg-email" style={{ margin: 0 }}>Email Address *</label>
+                      {regTouched.email && regEmail.trim() && (
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: regEmailIsValid ? "#16a34a" : "#dc2626" }}>
+                          {regEmailIsValid ? "✓ Valid email" : "Invalid email format"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="reg-email"
+                        name="ss_reg_user_mail"
+                        type="email"
+                        autoComplete="off"
+                        className="form-input"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, email: true }))}
+                        placeholder="Enter your email address"
+                        required
+                        style={{ paddingLeft: "38px", paddingRight: "36px" }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Mail size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                      {regTouched.email && regEmailIsValid && (
+                        <Check size={16} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label className="form-label" htmlFor="reg-phone" style={{ margin: 0 }}>Phone Number (Optional)</label>
+                      {regPhone.trim() && (
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: regPhoneIsValid ? "#16a34a" : "#dc2626" }}>
+                          {regPhoneIsValid ? "✓ Valid" : "Needs 10 digits"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="reg-phone"
+                        name="ss_reg_user_tel"
+                        type="tel"
+                        autoComplete="off"
+                        className="form-input"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, phone: true }))}
+                        placeholder="Enter your phone number"
+                        style={{ paddingLeft: "38px" }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Phone size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                    </div>
+                  </div>
+
+                  {/* Password & Strength Meter */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label className="form-label" htmlFor="reg-password" style={{ margin: 0 }}>Create Password *</label>
+                      {regPassword && (
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: pwdStrength.color }}>
+                          {pwdStrength.label}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="reg-password"
+                        name="ss_reg_new_pwd"
+                        type={showRegPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        className="form-input"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, password: true }))}
+                        placeholder="Min. 6 characters"
+                        required
+                        style={{ paddingLeft: "38px", paddingRight: "40px" }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Lock size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text-muted)"
+                        }}
+                      >
+                        {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+
+                    {/* Strength meter bar */}
+                    {regPassword && (
+                      <div style={{ display: "flex", gap: "4px", marginTop: "6px", height: "4px" }}>
+                        {[1, 2, 3, 4].map((step) => (
+                          <div
+                            key={step}
+                            style={{
+                              flex: 1,
+                              borderRadius: "2px",
+                              backgroundColor: pwdStrength.score >= step ? pwdStrength.color : "#e2e8f0",
+                              transition: "all 0.2s"
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="form-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label className="form-label" htmlFor="reg-confirm-password" style={{ margin: 0 }}>Confirm Password *</label>
+                      {regConfirmPassword && (
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: regPasswordsMatch ? "#16a34a" : "#dc2626" }}>
+                          {regPasswordsMatch ? "✓ Passwords match" : "Does not match"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        id="reg-confirm-password"
+                        name="ss_reg_confirm_pwd"
+                        type={showRegPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        className="form-input"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, confirmPassword: true }))}
+                        placeholder="Re-enter password"
+                        required
+                        style={{ paddingLeft: "38px" }}
+                        readOnly
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
+                        onMouseDown={(e) => e.target.removeAttribute('readonly')}
+                      />
+                      <Lock size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={regLoading}
+                    className="btn btn-primary"
+                    style={{
+                      padding: "14px",
+                      fontWeight: "700",
+                      fontSize: "15px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      marginTop: "6px"
+                    }}
+                  >
+                    <span>{regLoading ? "Creating Account..." : "Complete Registration"}</span>
+                    <ArrowRight size={18} />
+                  </button>
+
+                  <div style={{ textAlign: "center", fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("login");
+                        setLoginTouched({ identifier: false, password: false });
+                        setLoginError("");
+                      }}
+                      style={{ background: "none", border: "none", color: "var(--accent-gold-hover)", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                </form>
+              )}
+
+            </div>
+          </div>
         </div>
       ) : (
-        /* --- LOGGED-IN USER DASHBOARD --- */
+        /* ================= LOGGED-IN USER DASHBOARD ================= */
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 2.5fr",
@@ -923,7 +1382,14 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
           background-color: rgba(212,175,55,0.15) !important;
           color: var(--accent-gold) !important;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
+          .saree-auth-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .saree-auth-showcase {
+            padding: 32px 24px !important;
+            min-height: auto !important;
+          }
           .account-layout {
             grid-template-columns: 1fr !important;
             gap: 30px !important;

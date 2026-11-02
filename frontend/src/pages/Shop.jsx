@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, ShoppingBag, X, HelpCircle, ArrowUpDown, Search } from "lucide-react";
+import { Filter, ShoppingBag, X, HelpCircle, ArrowUpDown, Search, Plus } from "lucide-react";
 import WhatsAppButton from "../components/WhatsAppButton";
 
 export default function Shop({ addToCart, searchQuery, setSearchQuery, products }) {
@@ -505,13 +505,19 @@ export default function Shop({ addToCart, searchQuery, setSearchQuery, products 
                         disabled={product.stock === 0}
                         className="btn btn-primary"
                         style={{
-                          padding: "6px 12px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "7px 14px",
                           fontSize: "12px",
+                          fontWeight: "700",
                           borderRadius: "var(--radius-sm)",
                           minHeight: "auto"
                         }}
+                        title="Add to Cart"
                       >
-                        Add
+                        <Plus size={15} strokeWidth={2.5} />
+                        <span>Add</span>
                       </button>
                     </div>
                   </div>
@@ -663,9 +669,17 @@ export default function Shop({ addToCart, searchQuery, setSearchQuery, products 
                       }}
                       disabled={selectedProduct.stock === 0}
                       className="btn btn-primary"
-                      style={{ padding: "14px" }}
+                      style={{
+                        padding: "14px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        fontWeight: "700"
+                      }}
                     >
-                      Add Saree to Bag
+                      <Plus size={18} strokeWidth={2.5} />
+                      <span>Add Saree to Bag</span>
                     </button>
                     
                     {/* Per-product WhatsApp Inquiry */}
