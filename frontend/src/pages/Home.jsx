@@ -43,8 +43,8 @@ import bannerWeaver from "../assets/banners/weaver.png";
 import introHeroImg from "../assets/banners/intro-hero.png";
 
 export default function Home({ setCurrentTab, addToCart, products }) {
-  // Opening Intro Animation State (starts false so sarees show immediately upon entering)
-  const [showIntro, setShowIntro] = useState(false);
+  // Opening Intro Animation State
+  const [showIntro, setShowIntro] = useState(true);
 
   // Carousel State
   const [currentSlide, setCurrentSlide] = useState(0);
