@@ -222,39 +222,67 @@ def login(
             detail="Account is deactivated. Please contact support."
         )
 
-    # --- ADMIN MFA FLOW (Only enforced if admin has enabled MFA) ---
-    if user.role == "admin" and user.mfa_enabled:
-        if not payload.mfa_code:
-            temp_token = create_temp_mfa_token(user.id, is_setup=False)
+    # --- ADMIN MFA FLOW (Enforced Multi-Factor Authentication) ---
+    if user.role == "admin":
+        if user.mfa_enabled:
+            if not payload.mfa_code:
+                temp_token = create_temp_mfa_token(user.id, is_setup=False)
+                record_audit(
+                    db=db,
+                    request=request,
+                    action="ADMIN_LOGIN_MFA_PROMPT",
+                    resource="/api/auth/login",
+                    user=user,
+                    details={"status": "Awaiting 2FA TOTP code"}
+                )
+                return {
+                    "mfa_required": True,
+                    "mfa_setup_required": False,
+                    "temp_token": temp_token,
+                    "message": "Two-factor authentication code required for admin login."
+                }
+
+            # Direct code verification if passed in payload
+            if not verify_totp_code(user.mfa_secret, payload.mfa_code):
+                record_audit(
+                    db=db,
+                    request=request,
+                    action="ADMIN_MFA_FAILED",
+                    resource="/api/auth/login",
+                    user=user,
+                    details={"reason": "Invalid TOTP code"}
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid MFA verification code."
+                )
+        else:
+            # 2. Admin whose MFA is not yet activated -> prompt MFA QR setup
+            if not user.mfa_secret:
+                user.mfa_secret = generate_totp_secret()
+                db.commit()
+
+            totp_uri = get_totp_uri(user.mfa_secret, user.email)
+            qr_code_b64 = generate_qr_base64(totp_uri)
+            temp_token = create_temp_mfa_token(user.id, is_setup=True)
+
             record_audit(
                 db=db,
                 request=request,
-                action="ADMIN_LOGIN_MFA_PROMPT",
+                action="ADMIN_MFA_SETUP_PROMPT",
                 resource="/api/auth/login",
                 user=user,
-                details={"status": "Awaiting 2FA TOTP code"}
+                details={"status": "QR Code generated for 2FA onboarding"}
             )
+
             return {
                 "mfa_required": True,
-                "mfa_setup": False,
+                "mfa_setup_required": True,
                 "temp_token": temp_token,
-                "message": "Two-factor authentication code required for admin login."
+                "secret": user.mfa_secret,
+                "qr_code": qr_code_b64,
+                "message": "Admin MFA setup required. Scan QR code and enter 6-digit code to complete login."
             }
-
-        # Direct code verification if passed in payload
-        if not verify_totp_code(user.mfa_secret, payload.mfa_code):
-            record_audit(
-                db=db,
-                request=request,
-                action="ADMIN_MFA_FAILED",
-                resource="/api/auth/login",
-                user=user,
-                details={"reason": "Invalid TOTP code"}
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid MFA verification code."
-            )
 
     # --- NORMAL USER / VERIFIED ADMIN: Issue JWT Cookie ---
     token = create_jwt_token({

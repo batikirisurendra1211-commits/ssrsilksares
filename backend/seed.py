@@ -4,34 +4,39 @@ from security import hash_password
 
 def seed_admin(db):
     """
-    Seeds or updates the primary administrator account (suri@gmail.com).
+    Seeds or updates the primary administrator account (admin@gmail.com).
     """
     try:
-        admin_email = "suri@gmail.com"
+        admin_email = "admin@gmail.com"
+
+        # Remove previous temporary admin suri@gmail.com if present
+        old_admin = db.query(models.User).filter(models.User.email == "suri@gmail.com").first()
+        if old_admin:
+            db.delete(old_admin)
+            db.commit()
+
         existing = db.query(models.User).filter(models.User.email == admin_email).first()
         if not existing:
             new_admin = models.User(
-                id="usr-admin-suri",
+                id="usr-admin-primary",
                 email=admin_email,
-                name="Suri",
-                hashed_password=hash_password("suri@1234"),
-                phone="+918121191577",
+                name="Administrator",
+                hashed_password=hash_password("admin@1234"),
+                phone="+91 80734 28079",
                 role="admin",
                 is_active=True,
                 b2b_approved=True,
-                mfa_enabled=False
+                mfa_enabled=False  # Prompts QR code setup on first login
             )
             db.add(new_admin)
             db.commit()
             print(f"Admin account '{admin_email}' created successfully.")
         else:
-            existing.name = "Suri"
+            existing.name = "Administrator"
             existing.role = "admin"
-            existing.phone = "+918121191577"
-            existing.hashed_password = hash_password("suri@1234")
+            existing.hashed_password = hash_password("admin@1234")
             existing.is_active = True
             existing.b2b_approved = True
-            existing.mfa_enabled = False
             db.commit()
             print(f"Admin account '{admin_email}' updated with latest admin credentials.")
     except Exception as e:
