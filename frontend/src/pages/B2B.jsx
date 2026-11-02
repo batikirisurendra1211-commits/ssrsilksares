@@ -189,7 +189,7 @@ export default function B2B({ currentUser, setCurrentUser, setOrders }) {
                   className="form-input"
                   value={formData.businessName}
                   onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  placeholder="e.g. Aarati Saree Boutique"
+                  placeholder="Enter your business name"
                   required
                 />
               </div>

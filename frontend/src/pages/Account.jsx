@@ -440,6 +440,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                     placeholder="Enter registered email or phone"
                     required
                     style={{ paddingLeft: "38px" }}
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readonly')}
+                    onMouseDown={(e) => e.target.removeAttribute('readonly')}
                   />
                   <Mail size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                 </div>
@@ -459,6 +462,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                     placeholder="Enter your password"
                     required
                     style={{ paddingLeft: "38px", paddingRight: "40px" }}
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readonly')}
+                    onMouseDown={(e) => e.target.removeAttribute('readonly')}
                   />
                   <Lock size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                   <button
@@ -542,6 +548,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   onChange={(e) => setRegName(e.target.value)}
                   placeholder="Enter your full name"
                   required
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
                 />
               </div>
 
@@ -558,6 +567,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   onChange={(e) => setRegEmail(e.target.value)}
                   placeholder="Enter your email address"
                   required
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
                 />
               </div>
 
@@ -573,6 +585,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
                   placeholder="Enter your phone number"
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
                 />
               </div>
 
@@ -589,6 +604,9 @@ export default function Account({ currentUser, setCurrentUser, orders, setCurren
                   onChange={(e) => setRegPassword(e.target.value)}
                   placeholder="Create a secure password"
                   required
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                  onMouseDown={(e) => e.target.removeAttribute('readonly')}
                 />
               </div>
 
