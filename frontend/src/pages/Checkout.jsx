@@ -60,7 +60,7 @@ export default function Checkout({
     const customerEmail = shippingData.email.trim().toLowerCase();
     const finalTotal = Math.round(total);
 
-    // Create new order record matching backend schemas.OrderCreate
+    // Set to Cash On Delivery (all online methods paused per store configuration)
     const orderData = {
       customer_name: customerDisplayName,
       email: customerEmail,
@@ -71,33 +71,16 @@ export default function Checkout({
         image: item.product.image || "",
         deliveryAddress: fullAddress,
         contactPhone: shippingData.phone.trim(),
-        paymentMethod: shippingData.paymentMethod === "cod" ? "Cash On Delivery" : shippingData.paymentMethod === "stripe" ? "Stripe" : "UPI"
+        paymentMethod: "Cash On Delivery (COD)"
       })),
       total: finalTotal,
-      status: shippingData.paymentMethod === "stripe" ? "Pending Payment" : "Processing",
+      status: "Processing",
       date: new Date().toISOString().split("T")[0],
       type: isB2B ? "B2B" : "B2C",
-      payment_status: shippingData.paymentMethod === "cod" ? "COD Pending" : "Unpaid"
+      payment_status: "COD Pending"
     };
 
-    if (shippingData.paymentMethod === "stripe") {
-      try {
-        const sessionData = await api.payments.createSession(orderData);
-        if (sessionData && sessionData.checkout_url) {
-          window.location.href = sessionData.checkout_url;
-        } else {
-          alert("Failed to initiate Stripe session.");
-        }
-      } catch (err) {
-        console.error("Connection error initiating stripe payment:", err);
-        alert("Payment Error: " + (err.message || "Unable to initiate payment session."));
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    // Cash on Delivery & UPI handling
+    // Cash on Delivery submission
     try {
       const createdOrder = await api.orders.create(orderData);
       setPlacedOrderId(createdOrder.id);
@@ -108,10 +91,21 @@ export default function Checkout({
         phone: shippingData.phone.trim(),
         email: customerEmail,
         address: fullAddress,
-        paymentMethod: shippingData.paymentMethod === "cod" ? "Cash On Delivery (COD)" : "UPI Direct Pay"
+        paymentMethod: "Cash On Delivery (COD)"
       });
       
-      // Refresh global orders
+      // Update global orders state immediately so Admin & User Order history see it
+      if (setOrders) {
+        setOrders(prev => [createdOrder, ...prev.filter(o => o.id !== createdOrder.id)]);
+      }
+
+      // Persist in localStorage cache for instant cross-session sync
+      try {
+        const cached = JSON.parse(localStorage.getItem("ss_orders_cache") || "[]");
+        localStorage.setItem("ss_orders_cache", JSON.stringify([createdOrder, ...cached.filter(o => o.id !== createdOrder.id)]));
+      } catch {}
+
+      // Refresh global orders from backend
       if (fetchOrders) {
         await fetchOrders();
       }
@@ -356,76 +350,71 @@ export default function Checkout({
 
           {/* Payment Method Selector */}
           <div className="glass-card" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "20px" }}>
-            <h2 style={{ fontSize: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <CreditCard size={20} style={{ color: "var(--accent-gold)" }} /> Settlement Method
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: "20px", display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
+                <CreditCard size={20} style={{ color: "var(--accent-gold)" }} /> Settlement Method
+              </h2>
+              <span className="badge" style={{ backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", fontSize: "12px", padding: "4px 10px", borderRadius: "12px" }}>
+                ✓ COD Active
+              </span>
+            </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <label style={{
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Cash On Delivery (Active Option) */}
+              <div style={{
                 display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                padding: "16px",
-                border: "1px solid var(--border-light)",
+                alignItems: "flex-start",
+                gap: "14px",
+                padding: "18px",
+                border: "2px solid var(--accent-gold)",
                 borderRadius: "var(--radius-sm)",
-                cursor: "pointer"
+                backgroundColor: "rgba(212, 175, 55, 0.08)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
               }}>
-                <input 
-                  type="radio" 
-                  name="payment" 
-                  checked={shippingData.paymentMethod === "cod"}
-                  onChange={() => setShippingData({ ...shippingData, paymentMethod: "cod" })}
-                  style={{ accentColor: "var(--primary-maroon)" }}
-                />
-                <div>
-                  <strong>Cash On Delivery (COD)</strong>
-                  <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Pay on package delivery to your address.</span>
+                <div style={{
+                  width: "22px",
+                  height: "22px",
+                  borderRadius: "50%",
+                  backgroundColor: "var(--primary-maroon)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: "2px",
+                  flexShrink: 0
+                }}>
+                  <Truck size={14} />
                 </div>
-              </label>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                    <strong style={{ fontSize: "16px", color: "var(--primary-maroon)" }}>Cash On Delivery (COD)</strong>
+                    <span style={{ fontSize: "12px", color: "#16a34a", fontWeight: "700" }}>Zero Advance Required</span>
+                  </div>
+                  <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--text-dark)", lineHeight: "1.5" }}>
+                    Pay in cash directly upon parcel delivery to your doorstep. You can inspect the pure handloom saree before paying.
+                  </p>
+                </div>
+              </div>
 
-              <label style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                padding: "16px",
-                border: "1px solid var(--border-light)",
+              {/* Paused Online Payment Options */}
+              <div style={{
+                padding: "14px 18px",
+                border: "1px dashed var(--border-light)",
                 borderRadius: "var(--radius-sm)",
-                cursor: "pointer"
-              }}>
-                <input 
-                  type="radio" 
-                  name="payment" 
-                  checked={shippingData.paymentMethod === "upi"}
-                  onChange={() => setShippingData({ ...shippingData, paymentMethod: "upi" })}
-                  style={{ accentColor: "var(--primary-maroon)" }}
-                />
-                <div>
-                  <strong>Pay via UPI (GPay / PhonePe / Paytm)</strong>
-                  <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Coordinate with store support to scan QR code prior to dispatch.</span>
-                </div>
-              </label>
-
-              <label style={{
+                backgroundColor: "rgba(0,0,0,0.02)",
+                opacity: 0.7,
                 display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                padding: "16px",
-                border: "1px solid var(--border-light)",
-                borderRadius: "var(--radius-sm)",
-                cursor: "pointer"
+                flexDirection: "column",
+                gap: "6px"
               }}>
-                <input 
-                  type="radio" 
-                  name="payment" 
-                  checked={shippingData.paymentMethod === "stripe"}
-                  onChange={() => setShippingData({ ...shippingData, paymentMethod: "stripe" })}
-                  style={{ accentColor: "var(--primary-maroon)" }}
-                />
-                <div>
-                  <strong>Stripe Test Card</strong>
-                  <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Pay with credit/debit card using safe Stripe checkout.</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-muted)" }}>Online UPI & Card Gateways</span>
+                  <span style={{ fontSize: "11px", backgroundColor: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>Temporarily Paused</span>
                 </div>
-              </label>
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>
+                  Direct online UPI & Card payments are paused by store operations. Please complete your order securely via Cash On Delivery.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -448,11 +437,11 @@ export default function Checkout({
             {submitting ? (
               <>
                 <Loader size={18} className="spin-animation" />
-                <span>Confirming Order...</span>
+                <span>Confirming COD Order...</span>
               </>
             ) : (
               <span>
-                Place Order with {shippingData.paymentMethod === "cod" ? "Cash On Delivery" : shippingData.paymentMethod === "stripe" ? "Stripe" : "UPI"} (₹{total.toLocaleString("en-IN")})
+                Confirm Cash On Delivery Order (₹{total.toLocaleString("en-IN")})
               </span>
             )}
           </button>

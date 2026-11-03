@@ -73,10 +73,33 @@ export default function Admin({
   const [auditLoading, setAuditLoading] = useState(false);
   const [usersList, setUsersList] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Log admin navigation when switching panels
+  // Safe refresh that never wipes data
+  const handleRefreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        fetchProducts ? fetchProducts() : Promise.resolve(),
+        fetchOrders ? fetchOrders() : Promise.resolve(),
+        fetchAuditLogs(),
+        fetchUsers(),
+        fetchCreationHistory()
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Log admin navigation when switching panels & auto-refresh relevant tab data
   const handleNavChange = (navKey, navTitle) => {
     setActiveNav(navKey);
+    if (navKey === "orders" || navKey === "dashboard") {
+      if (fetchOrders) fetchOrders();
+    }
+    if (navKey === "products") {
+      if (fetchProducts) fetchProducts();
+    }
     api.audit.logPageView(`Admin Panel: ${navTitle}`, `#/admin?tab=${navKey}`);
   };
 
@@ -130,6 +153,8 @@ export default function Admin({
       fetchCreationHistory();
       fetchAuditLogs();
       fetchUsers();
+      if (fetchOrders) fetchOrders();
+      if (fetchProducts) fetchProducts();
       api.audit.logPageView("Admin Dashboard", "#/admin");
     }
   }, [currentUser?.role]);
@@ -222,7 +247,23 @@ export default function Admin({
     };
 
     try {
-      await api.products.create(productData);
+      const created = await api.products.create(productData);
+      const productWithId = {
+        ...productData,
+        id: created?.id || "ss-" + Math.floor(Math.random() * 10000),
+        image: created?.image || formImageUrl
+      };
+
+      if (setProducts) {
+        setProducts((prev) => {
+          const updated = [productWithId, ...(prev || []).filter(p => p.id !== productWithId.id)];
+          try {
+            localStorage.setItem("ss_products_cache", JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+
       if (fetchProducts) await fetchProducts();
       await fetchCreationHistory();
       fetchAuditLogs();
@@ -254,7 +295,19 @@ export default function Admin({
     };
 
     try {
-      await api.products.update(selectedProduct.id, updateData);
+      const updated = await api.products.update(selectedProduct.id, updateData);
+      if (setProducts) {
+        setProducts((prev) => {
+          const updatedList = (prev || []).map((p) =>
+            p.id === selectedProduct.id ? { ...p, ...updateData, ...(updated || {}) } : p
+          );
+          try {
+            localStorage.setItem("ss_products_cache", JSON.stringify(updatedList));
+          } catch {}
+          return updatedList;
+        });
+      }
+
       if (fetchProducts) await fetchProducts();
       await fetchCreationHistory();
       fetchAuditLogs();
@@ -273,6 +326,15 @@ export default function Admin({
     if (!window.confirm(`Are you sure you want to permanently delete "${productName}"?`)) return;
     try {
       await api.products.delete(productId);
+      if (setProducts) {
+        setProducts((prev) => {
+          const filtered = (prev || []).filter((p) => p.id !== productId);
+          try {
+            localStorage.setItem("ss_products_cache", JSON.stringify(filtered));
+          } catch {}
+          return filtered;
+        });
+      }
       if (fetchProducts) await fetchProducts();
       await fetchCreationHistory();
       fetchAuditLogs();
@@ -359,16 +421,23 @@ export default function Admin({
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <button
-            onClick={() => {
-              if (fetchProducts) fetchProducts();
-              if (fetchOrders) fetchOrders();
-              fetchAuditLogs();
-              fetchUsers();
-            }}
+            onClick={handleRefreshAll}
+            disabled={refreshing}
             className="btn btn-outline"
-            style={{ borderColor: "rgba(255,255,255,0.3)", color: "var(--bg-cream)", padding: "8px 16px", fontSize: "13px" }}
+            style={{
+              borderColor: "rgba(255,255,255,0.3)",
+              color: "var(--bg-cream)",
+              padding: "8px 16px",
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              opacity: refreshing ? 0.7 : 1,
+              cursor: refreshing ? "wait" : "pointer"
+            }}
           >
-            <RefreshCw size={14} /> Refresh Data
+            <RefreshCw size={14} className={refreshing ? "spin-animation" : ""} />
+            {refreshing ? "Refreshing..." : "Refresh Data"}
           </button>
           <button
             onClick={() => {
@@ -788,16 +857,26 @@ export default function Admin({
                   <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Manage order fulfillment and status transitions.</p>
                 </div>
 
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Search orders..."
-                    value={orderSearchQuery}
-                    onChange={(e) => setOrderSearchQuery(e.target.value)}
-                    style={{ paddingLeft: "36px", width: "240px", fontSize: "13px" }}
-                  />
-                  <Search size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Search orders..."
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      style={{ paddingLeft: "36px", width: "220px", fontSize: "13px" }}
+                    />
+                    <Search size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+                  </div>
+                  <button 
+                    onClick={() => { if (fetchOrders) fetchOrders(); }} 
+                    className="btn btn-outline" 
+                    style={{ padding: "8px 14px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                    title="Reload latest customer orders"
+                  >
+                    <RefreshCw size={14} /> Refresh
+                  </button>
                 </div>
               </div>
 
@@ -806,7 +885,7 @@ export default function Admin({
                   <thead>
                     <tr style={{ borderBottom: "2px solid var(--border-light)", textAlign: "left", color: "var(--text-muted)" }}>
                       <th style={{ padding: "12px 16px" }}>Order ID</th>
-                      <th style={{ padding: "12px 16px" }}>Customer</th>
+                      <th style={{ padding: "12px 16px" }}>Customer & Delivery</th>
                       <th style={{ padding: "12px 16px" }}>Items</th>
                       <th style={{ padding: "12px 16px" }}>Total</th>
                       <th style={{ padding: "12px 16px" }}>Payment</th>
@@ -814,49 +893,67 @@ export default function Admin({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((order) => (
-                      <tr key={order.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                        <td style={{ padding: "12px 16px", fontWeight: "700" }}>
-                          <div>{order.id}</div>
-                          <span className="badge" style={{ fontSize: "10px", backgroundColor: order.type === "B2B" ? "rgba(212,175,55,0.15)" : "rgba(0,0,0,0.05)" }}>
-                            {order.type || "B2C"}
-                          </span>
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <div style={{ fontWeight: "600" }}>{order.customer_name}</div>
-                          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{order.email}</div>
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <div style={{ fontSize: "12px" }}>
-                            {Array.isArray(order.items) && order.items.map((it, idx) => (
-                              <div key={idx}>{it.productName || it.name} × {it.quantity}</div>
-                            ))}
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px 16px", fontWeight: "700" }}>₹{(order.total || 0).toLocaleString("en-IN")}</td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <span className="badge" style={{
-                            backgroundColor: order.payment_status === "Paid" ? "#d1fae5" : "#fef3c7",
-                            color: order.payment_status === "Paid" ? "#065f46" : "#92400e"
-                          }}>
-                            {order.payment_status}
-                          </span>
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            className="form-input"
-                            style={{ padding: "6px 10px", fontSize: "13px", cursor: "pointer", width: "140px" }}
-                          >
-                            <option value="Processing">Processing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
+                    {filteredOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
+                          <ClipboardList size={36} style={{ margin: "0 auto 12px", color: "var(--accent-gold)", opacity: 0.8 }} />
+                          <p style={{ fontWeight: "600", fontSize: "15px", margin: "0 0 6px" }}>No orders found</p>
+                          <p style={{ fontSize: "13px", margin: 0 }}>Orders placed by customers will automatically show up here.</p>
+                          <button onClick={() => { if (fetchOrders) fetchOrders(); }} className="btn btn-outline" style={{ marginTop: "14px", padding: "6px 16px", fontSize: "12px" }}>
+                            <RefreshCw size={12} style={{ marginRight: "6px" }} /> Refresh Orders List
+                          </button>
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredOrders.map((order) => (
+                        <tr key={order.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                          <td style={{ padding: "12px 16px", fontWeight: "700" }}>
+                            <div>{order.id}</div>
+                            <span className="badge" style={{ fontSize: "10px", backgroundColor: order.type === "B2B" ? "rgba(212,175,55,0.15)" : "rgba(0,0,0,0.05)" }}>
+                              {order.type || "B2C"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <div style={{ fontWeight: "600" }}>{order.customer_name}</div>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{order.email}</div>
+                            {Array.isArray(order.items) && order.items[0]?.deliveryAddress && (
+                              <div style={{ fontSize: "11px", color: "var(--primary-maroon)", marginTop: "4px" }}>
+                                📍 {order.items[0].deliveryAddress}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <div style={{ fontSize: "12px" }}>
+                              {Array.isArray(order.items) && order.items.map((it, idx) => (
+                                <div key={idx}>{it.productName || it.name} × {it.quantity}</div>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: "700" }}>₹{(order.total || 0).toLocaleString("en-IN")}</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <span className="badge" style={{
+                              backgroundColor: order.payment_status === "Paid" ? "#d1fae5" : order.payment_status?.includes("COD") ? "#fef3c7" : "#fee2e2",
+                              color: order.payment_status === "Paid" ? "#065f46" : order.payment_status?.includes("COD") ? "#92400e" : "#991b1b"
+                            }}>
+                              {order.payment_status}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              className="form-input"
+                              style={{ padding: "6px 10px", fontSize: "13px", cursor: "pointer", width: "140px" }}
+                            >
+                              <option value="Processing">Processing</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

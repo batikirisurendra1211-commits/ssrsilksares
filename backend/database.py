@@ -11,6 +11,14 @@ db_url = settings.DATABASE_URL
 # seamlessly use SQLite in /tmp so all endpoints and catalog work immediately!
 is_cloud = os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
 if is_cloud and ("localhost" in db_url or "127.0.0.1" in db_url):
+    tmp_db = Path("/tmp/sssilksarees.db")
+    src_db = backend_dir / "sssilksarees.db"
+    if not tmp_db.exists() and src_db.exists():
+        try:
+            import shutil
+            shutil.copy(src_db, tmp_db)
+        except Exception as copy_err:
+            print("Notice: SQLite pre-copy:", copy_err)
     db_url = "sqlite:////tmp/sssilksarees.db"
 
 connect_args = {}

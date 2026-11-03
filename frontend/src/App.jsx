@@ -20,6 +20,7 @@ import CheckoutSuccess from "./pages/CheckoutSuccess";
 import saree1Img from "./assets/products/saree-1.png";
 import saree2Img from "./assets/products/saree-2.png";
 import saree3Img from "./assets/products/saree-3.png";
+import { products as defaultProducts } from "./data/products";
 
 import api from "./api/apiClient";
 
@@ -29,9 +30,17 @@ const imageMap = {
   saree3Img,
 };
 const resolveProductImage = (image) => {
-  if (image?.startsWith("http://") || image?.startsWith("https://")) return image;
-  if (image?.startsWith("/uploads/")) return image;
-  return imageMap[image] || saree1Img;
+  if (!image) return saree1Img;
+  if (
+    image.startsWith("data:image/") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://") ||
+    image.startsWith("/uploads/") ||
+    image.startsWith("/assets/")
+  ) {
+    return image;
+  }
+  return imageMap[image] || image;
 };
 
 export default function App() {
@@ -40,8 +49,38 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [productsList, setProductsList] = useState([]);
-  const [orders, setOrders] = useState([]);
+
+  // Initialize products from persistent cache or default catalog so refresh never wipes sarees
+  const [productsList, setProductsList] = useState(() => {
+    try {
+      const cached = localStorage.getItem("ss_products_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p) => ({
+            ...p,
+            image: resolveProductImage(p.image),
+          }));
+        }
+      }
+    } catch {}
+    return defaultProducts.map((p) => ({
+      ...p,
+      image: resolveProductImage(p.image),
+    }));
+  });
+
+  // Initialize orders from cache so refresh never wipes customer/admin orders
+  const [orders, setOrders] = useState(() => {
+    try {
+      const cached = localStorage.getItem("ss_orders_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
 
   // Authenticated user state loaded dynamically from HTTP-only session cookie
   const [currentUser, setCurrentUser] = useState(null);
@@ -67,12 +106,27 @@ export default function App() {
   const fetchProducts = async () => {
     try {
       const data = await api.products.getAll();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map((p) => ({
           ...p,
           image: resolveProductImage(p.image),
         }));
-        setProductsList(mapped);
+        setProductsList((prev) => {
+          const productMap = new Map();
+          // 1. Add server products
+          mapped.forEach((p) => productMap.set(p.id, p));
+          // 2. Preserve any local/custom products that might not be on the server yet
+          (prev || []).forEach((p) => {
+            if (p && p.id && !productMap.has(p.id)) {
+              productMap.set(p.id, p);
+            }
+          });
+          const merged = Array.from(productMap.values());
+          try {
+            localStorage.setItem("ss_products_cache", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     } catch (e) {
       console.warn("Failed to fetch products from backend:", e);
@@ -83,7 +137,24 @@ export default function App() {
     try {
       const data = await api.orders.getAll();
       if (Array.isArray(data)) {
-        setOrders(data);
+        setOrders((prev) => {
+          // Never wipe out orders if server returns empty
+          if (data.length === 0 && prev && prev.length > 0) {
+            return prev;
+          }
+          const orderMap = new Map();
+          (prev || []).forEach((o) => {
+            if (o && o.id) orderMap.set(o.id, o);
+          });
+          data.forEach((o) => {
+            if (o && o.id) orderMap.set(o.id, o);
+          });
+          const merged = Array.from(orderMap.values());
+          try {
+            localStorage.setItem("ss_orders_cache", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     } catch (e) {
       console.warn("Failed to fetch orders from backend:", e);

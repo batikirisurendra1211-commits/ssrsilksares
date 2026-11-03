@@ -35,7 +35,7 @@ class Product(Base):
     length = Column(String(100), nullable=True)
     weight = Column(String(100), nullable=True)
     care = Column(String(255), nullable=True)
-    image = Column(String(500), nullable=True)  # URL, relative path, or asset identifier
+    image = Column(Text, nullable=True)  # URL, relative path, or data URI
     category = Column(String(100), default="Sarees")
     discount = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -64,7 +64,7 @@ class ProductHistory(Base):
     product_id = Column(String(36), index=True, nullable=False)
     product_name = Column(String(255), nullable=False)
     action = Column(String(50), nullable=False)  # "Created", "Updated", "Deleted"
-    image = Column(String(500), nullable=True)
+    image = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

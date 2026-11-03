@@ -1,4 +1,5 @@
 import uuid
+import base64
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 import models
@@ -15,10 +16,15 @@ except Exception:
     UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads"
     UPLOAD_DIR.mkdir(exist_ok=True)
 
-ALLOWED_IMAGE_TYPES = {
+ALLOWED_EXTENSIONS = {
     "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
     "image/png": ".png",
-    "image/webp": ".webp"
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+    "image/svg+xml": ".svg",
+    "image/heic": ".heic",
+    "image/bmp": ".bmp"
 }
 
 @router.post("")
@@ -28,24 +34,33 @@ async def upload_product_image(
 ):
     """
     Store an admin-uploaded saree image and return its public URL.
-    Uses UUID for random and conflict-free filenames.
+    No file size limitation. Supports all standard image formats.
+    Returns both relative upload URL and base64 data URL for universal compatibility.
     """
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=415, detail="Unsupported image format. Please upload JPG, PNG, or WebP.")
-
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="The uploaded image file is empty.")
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 5 MB.")
 
-    ext = ALLOWED_IMAGE_TYPES[file.content_type]
+    mime_type = file.content_type or "image/jpeg"
+    ext = ALLOWED_EXTENSIONS.get(mime_type, ".jpg")
     filename = f"{uuid.uuid4().hex}{ext}"
-    target_path = UPLOAD_DIR / filename
-    target_path.write_bytes(content)
+
+    # Generate persistent Data URL so image works seamlessly across any serverless or static hosting
+    b64_content = base64.b64encode(content).decode("utf-8")
+    data_url = f"data:{mime_type};base64,{b64_content}"
+
+    # Also save to disk if directory is writable
+    try:
+        target_path = UPLOAD_DIR / filename
+        target_path.write_bytes(content)
+        file_url = f"/uploads/{filename}"
+    except Exception:
+        file_url = data_url
 
     return {
-        "url": f"/uploads/{filename}",
+        "url": data_url if len(content) < 4 * 1024 * 1024 else file_url,
+        "data_url": data_url,
+        "file_url": file_url,
         "filename": filename
     }
 

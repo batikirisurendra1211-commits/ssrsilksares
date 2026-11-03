@@ -75,11 +75,11 @@ export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart 
             We could not verify your Stripe payment. If money was deducted, please contact support with your details.
           </p>
           <div style={{ marginTop: "20px", display: "flex", gap: "12px", width: "100%" }}>
-            <button 
+            <button
               onClick={() => {
                 setCurrentTab("shop");
                 window.location.hash = "#/shop";
-              }} 
+              }}
               className="btn btn-primary"
               style={{ flex: 1, padding: "12px" }}
             >
@@ -101,7 +101,7 @@ export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart 
         <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.6" }}>
           Thank you for your purchase! Your payment has been verified successfully. Our team has been notified and your saree will be dispatched shortly.
         </p>
-        
+
         <div style={{
           borderTop: "1px dashed var(--border-light)",
           width: "100%",
@@ -110,21 +110,21 @@ export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart 
           flexDirection: "column",
           gap: "12px"
         }}>
-          <button 
+          <button
             onClick={() => {
               setCurrentTab("account");
               window.location.hash = "#/account";
-            }} 
+            }}
             className="btn btn-primary"
             style={{ width: "100%", padding: "12px" }}
           >
             Track Order History
           </button>
-          <button 
+          <button
             onClick={() => {
               setCurrentTab("shop");
               window.location.hash = "#/shop";
-            }} 
+            }}
             className="btn btn-outline"
             style={{ width: "100%", padding: "12px" }}
           >
@@ -132,7 +132,7 @@ export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart 
           </button>
         </div>
       </div>
-      
+
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
