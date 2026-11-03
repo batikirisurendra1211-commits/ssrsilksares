@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, EmailStr, Field
 
 # --- AUTH & USER SCHEMAS ---
@@ -104,7 +104,7 @@ class OrderCreate(BaseModel):
     customer_name: str
     email: str
     items: List[Dict[str, Any]]
-    total: int
+    total: Union[int, float]
     status: Optional[str] = "Processing"
     date: Optional[str] = None
     type: Optional[str] = "B2C"

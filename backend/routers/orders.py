@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -72,9 +73,9 @@ def create_order(
         customer_name=payload.customer_name,
         email=payload.email.lower(),
         items=payload.items,
-        total=payload.total,
+        total=int(round(payload.total)),
         status=payload.status or "Processing",
-        date=payload.date,
+        date=payload.date or datetime.utcnow().strftime("%Y-%m-%d"),
         type=payload.type or "B2C",
         payment_status=payload.payment_status or "Unpaid",
         stripe_session_id=payload.stripe_session_id

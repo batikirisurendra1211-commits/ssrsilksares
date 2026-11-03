@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { CheckCircle, ShieldCheck, MapPin, CreditCard, ShoppingBag, ArrowLeft } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle, ShieldCheck, MapPin, CreditCard, ShoppingBag, ArrowLeft, Loader, Truck, Phone, Mail } from "lucide-react";
+import api from "../api/apiClient";
 
 export default function Checkout({ 
   cart, 
@@ -12,16 +13,30 @@ export default function Checkout({
   fetchOrders
 }) {
   const [shippingData, setShippingData] = useState({
-    name: currentUser ? currentUser.name : "",
+    name: currentUser ? (currentUser.name || "") : "",
+    email: currentUser ? (currentUser.email || "") : "",
     address: "",
     city: "",
     pincode: "",
     phone: currentUser ? (currentUser.phone || "") : "",
-    paymentMethod: "cod" // options: 'cod', 'upi'
+    paymentMethod: "cod" // options: 'cod', 'upi', 'stripe'
   });
 
+  const [submitting, setSubmitting] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState("");
+  const [placedOrderSummary, setPlacedOrderSummary] = useState(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      setShippingData(prev => ({
+        ...prev,
+        name: prev.name || currentUser.name || "",
+        email: prev.email || currentUser.email || "",
+        phone: prev.phone || currentUser.phone || ""
+      }));
+    }
+  }, [currentUser]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   
@@ -33,94 +48,156 @@ export default function Checkout({
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    if (!shippingData.name || !shippingData.address || !shippingData.city || !shippingData.pincode || !shippingData.phone) {
-      alert("Please fill in all shipping details.");
+    if (!shippingData.name || !shippingData.address || !shippingData.city || !shippingData.pincode || !shippingData.phone || !shippingData.email) {
+      alert("Please fill in all shipping and contact details.");
       return;
     }
 
+    setSubmitting(true);
+
+    const fullAddress = `${shippingData.address.trim()}, ${shippingData.city.trim()} - ${shippingData.pincode.trim()}`;
+    const customerDisplayName = `${shippingData.name.trim()} (${shippingData.phone.trim()})`;
+    const customerEmail = shippingData.email.trim().toLowerCase();
+    const finalTotal = Math.round(total);
+
     // Create new order record matching backend schemas.OrderCreate
     const orderData = {
-      customer_name: shippingData.name,
-      email: currentUser ? currentUser.email : "guest@mail.com",
+      customer_name: customerDisplayName,
+      email: customerEmail,
       items: cart.map(item => ({
         productName: item.product.name,
         quantity: item.quantity,
-        price: item.product.price
+        price: item.product.price,
+        image: item.product.image || "",
+        deliveryAddress: fullAddress,
+        contactPhone: shippingData.phone.trim(),
+        paymentMethod: shippingData.paymentMethod === "cod" ? "Cash On Delivery" : shippingData.paymentMethod === "stripe" ? "Stripe" : "UPI"
       })),
-      total: total,
+      total: finalTotal,
       status: shippingData.paymentMethod === "stripe" ? "Pending Payment" : "Processing",
       date: new Date().toISOString().split("T")[0],
       type: isB2B ? "B2B" : "B2C",
-      payment_status: "Unpaid"
+      payment_status: shippingData.paymentMethod === "cod" ? "COD Pending" : "Unpaid"
     };
 
     if (shippingData.paymentMethod === "stripe") {
       try {
-        const res = await fetch("http://localhost:8000/api/payments/create-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          credentials: "include",
-          body: JSON.stringify(orderData)
-        });
-
-        if (res.ok) {
-          const sessionData = await res.json();
-          if (sessionData.checkout_url) {
-            window.location.href = sessionData.checkout_url;
-          } else {
-            alert("Failed to initiate Stripe session.");
-          }
+        const sessionData = await api.payments.createSession(orderData);
+        if (sessionData && sessionData.checkout_url) {
+          window.location.href = sessionData.checkout_url;
         } else {
-          alert("Failed to initiate Stripe session. Please verify backend.");
+          alert("Failed to initiate Stripe session.");
         }
       } catch (err) {
         console.error("Connection error initiating stripe payment:", err);
-        alert("Connection error: Unable to contact FastAPI backend.");
+        alert("Payment Error: " + (err.message || "Unable to initiate payment session."));
+      } finally {
+        setSubmitting(false);
       }
       return;
     }
 
+    // Cash on Delivery & UPI handling
     try {
-      const res = await fetch("http://localhost:8000/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify(orderData)
+      const createdOrder = await api.orders.create(orderData);
+      setPlacedOrderId(createdOrder.id);
+      setPlacedOrderSummary({
+        id: createdOrder.id,
+        total: finalTotal,
+        name: shippingData.name.trim(),
+        phone: shippingData.phone.trim(),
+        email: customerEmail,
+        address: fullAddress,
+        paymentMethod: shippingData.paymentMethod === "cod" ? "Cash On Delivery (COD)" : "UPI Direct Pay"
       });
       
-      if (res.ok) {
-        const createdOrder = await res.json();
-        setPlacedOrderId(createdOrder.id);
-        
-        // Refresh global orders
-        if (fetchOrders) {
-          await fetchOrders();
-        }
-
-        setOrderCompleted(true);
-        clearCart();
-      } else {
-        alert("Failed to submit order to the local server. Please verify backend.");
+      // Refresh global orders
+      if (fetchOrders) {
+        await fetchOrders();
       }
+
+      setOrderCompleted(true);
+      clearCart();
     } catch (err) {
       console.error("Connection error placing order:", err);
-      alert("Connection error: Unable to contact FastAPI backend.");
+      alert("Failed to place order: " + (err.message || "Please check your connection and try again."));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   if (orderCompleted) {
     return (
-      <div className="container" style={{ paddingTop: "60px", maxWidth: "600px", textAlign: "center" }}>
-        <div className="glass-card" style={{ padding: "48px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center" }}>
-          <CheckCircle size={64} style={{ color: "#22c55e" }} />
-          <h1 style={{ fontSize: "32px", color: "var(--primary-maroon)" }} className="dark-gold-text">Order Placed!</h1>
-          <p style={{ fontWeight: "700" }}>Your order ID is: <span style={{ color: "var(--accent-gold-hover)" }}>{placedOrderId}</span></p>
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.6" }}>
-            Namaste! Your order has been registered in our loom database. Our support team has been notified and will contact you to coordinate delivery and verify UPI payment if chosen.
+      <div className="container" style={{ paddingTop: "60px", maxWidth: "640px", textAlign: "center" }}>
+        <div className="glass-card" style={{ padding: "48px 36px", display: "flex", flexDirection: "column", gap: "24px", alignItems: "center" }}>
+          <div style={{
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            backgroundColor: "rgba(34, 197, 94, 0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#16a34a"
+          }}>
+            <CheckCircle size={52} />
+          </div>
+
+          <div>
+            <span className="badge" style={{
+              backgroundColor: "rgba(212, 175, 55, 0.15)",
+              color: "var(--accent-gold)",
+              border: "1px solid var(--accent-gold)",
+              fontSize: "12px",
+              padding: "4px 12px",
+              borderRadius: "16px",
+              marginBottom: "8px",
+              display: "inline-block"
+            }}>
+              Order Confirmed & Received
+            </span>
+            <h1 style={{ fontSize: "32px", color: "var(--primary-maroon)", margin: "8px 0" }} className="dark-gold-text">
+              Order Placed Successfully!
+            </h1>
+            <p style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-dark)" }}>
+              Order ID: <span style={{ color: "var(--accent-gold)", letterSpacing: "1px" }}>{placedOrderId}</span>
+            </p>
+          </div>
+
+          {placedOrderSummary && (
+            <div style={{
+              width: "100%",
+              backgroundColor: "rgba(74, 14, 21, 0.03)",
+              border: "1px solid var(--border-gold)",
+              borderRadius: "var(--radius-sm)",
+              padding: "20px",
+              textAlign: "left",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              fontSize: "14px"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Settlement Mode:</span>
+                <strong style={{ color: "var(--primary-maroon)" }}>{placedOrderSummary.paymentMethod}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Payable on Delivery:</span>
+                <strong style={{ color: "#16a34a", fontSize: "16px" }}>₹{placedOrderSummary.total.toLocaleString("en-IN")}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "8px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Recipient:</span>
+                <span>{placedOrderSummary.name} ({placedOrderSummary.phone})</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Delivery Address:</span>
+                <span style={{ fontWeight: "600", color: "var(--text-dark)" }}>{placedOrderSummary.address}</span>
+              </div>
+            </div>
+          )}
+
+          <p style={{ color: "var(--text-muted)", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
+            Namaste! Your pure silk order has been dispatched to our weaving and packaging master craftsmen in Bengaluru. You can pay cash upon parcel delivery.
           </p>
           
           <div style={{
@@ -137,9 +214,9 @@ export default function Checkout({
                 window.location.hash = "#/account";
               }} 
               className="btn btn-primary"
-              style={{ width: "100%", padding: "12px" }}
+              style={{ width: "100%", padding: "14px", fontWeight: "700" }}
             >
-              Track Order History
+              Track in My Orders / Account
             </button>
             <button 
               onClick={() => {
@@ -149,7 +226,7 @@ export default function Checkout({
               className="btn btn-outline"
               style={{ width: "100%", padding: "12px" }}
             >
-              Continue Shopping
+              Continue Exploring Sarees
             </button>
           </div>
         </div>
@@ -262,6 +339,19 @@ export default function Checkout({
                 required 
               />
             </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="ship-email">Email Address (for Order Receipt & Updates) *</label>
+              <input 
+                id="ship-email"
+                type="email" 
+                className="form-input" 
+                value={shippingData.email}
+                onChange={(e) => setShippingData({ ...shippingData, email: e.target.value })}
+                placeholder="name@example.com"
+                required 
+              />
+            </div>
           </div>
 
           {/* Payment Method Selector */}
@@ -342,14 +432,29 @@ export default function Checkout({
           <button 
             type="submit" 
             className="btn btn-primary"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || submitting}
             style={{
               padding: "16px",
               fontSize: "16px",
-              fontWeight: "700"
+              fontWeight: "700",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              opacity: (cart.length === 0 || submitting) ? 0.7 : 1,
+              cursor: (cart.length === 0 || submitting) ? "not-allowed" : "pointer"
             }}
           >
-            Place Order (₹{total.toLocaleString("en-IN")})
+            {submitting ? (
+              <>
+                <Loader size={18} className="spin-animation" />
+                <span>Confirming Order...</span>
+              </>
+            ) : (
+              <span>
+                Place Order with {shippingData.paymentMethod === "cod" ? "Cash On Delivery" : shippingData.paymentMethod === "stripe" ? "Stripe" : "UPI"} (₹{total.toLocaleString("en-IN")})
+              </span>
+            )}
           </button>
         </form>
 

@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 import stripe
 from database import get_db
@@ -17,6 +18,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 @router.post("/create-session")
 def create_payment_session(
     order_payload: schemas.OrderCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_optional_user)
 ):
@@ -27,6 +29,10 @@ def create_payment_session(
     order_id = f"ORD-{uuid.uuid4().hex[:8].upper()}"
     stripe_session_id = None
     checkout_url = None
+
+    host = request.headers.get("host", "localhost:5173")
+    proto = "https" if "vercel.app" in host else "http"
+    base_url = f"{proto}://{host}"
 
     try:
         if settings.STRIPE_SECRET_KEY and not settings.STRIPE_SECRET_KEY.startswith("sk_test_placeholder"):
@@ -47,8 +53,8 @@ def create_payment_session(
                 payment_method_types=["card"],
                 line_items=line_items,
                 mode="payment",
-                success_url=f"http://localhost:5173/#/checkout-success?session_id={{CHECKOUT_SESSION_ID}}&order_id={order_id}",
-                cancel_url="http://localhost:5173/#/checkout",
+                success_url=f"{base_url}/#/checkout-success?session_id={{CHECKOUT_SESSION_ID}}&order_id={order_id}",
+                cancel_url=f"{base_url}/#/checkout",
             )
             stripe_session_id = session.id
             checkout_url = session.url
@@ -57,7 +63,7 @@ def create_payment_session(
     except Exception as e:
         # Simulation Mode
         stripe_session_id = f"sim_session_{uuid.uuid4().hex[:12]}"
-        checkout_url = f"http://localhost:5173/#/checkout-success?session_id={stripe_session_id}&order_id={order_id}"
+        checkout_url = f"{base_url}/#/checkout-success?session_id={stripe_session_id}&order_id={order_id}"
 
     user_id = current_user.id if current_user else None
     db_order = models.Order(
@@ -66,9 +72,9 @@ def create_payment_session(
         customer_name=order_payload.customer_name,
         email=order_payload.email.lower(),
         items=order_payload.items,
-        total=order_payload.total,
+        total=int(round(order_payload.total)),
         status="Processing" if "sim_" in (stripe_session_id or "") else "Pending Payment",
-        date=order_payload.date,
+        date=order_payload.date or datetime.utcnow().strftime("%Y-%m-%d"),
         type=order_payload.type or "B2C",
         payment_status="Paid" if "sim_" in (stripe_session_id or "") else "Unpaid",
         stripe_session_id=stripe_session_id

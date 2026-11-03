@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle, AlertTriangle, ArrowRight, Loader, ShoppingBag } from "lucide-react";
+import api from "../api/apiClient";
 
 export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart }) {
   const [loading, setLoading] = useState(true);
@@ -19,19 +20,12 @@ export default function CheckoutSuccess({ setCurrentTab, fetchOrders, clearCart 
 
     const confirmPayment = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/payments/confirm", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            order_id: oid
-          })
+        const data = await api.payments.confirm({
+          session_id: sessionId,
+          order_id: oid
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (data && data.payment_status) {
           setPaymentStatus(data.payment_status);
           setStatus("success");
           clearCart(); // Clear the cart since order was paid/placed successfully

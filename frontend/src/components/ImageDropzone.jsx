@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import { ImagePlus, LoaderCircle, UploadCloud, X } from "lucide-react";
-
-const API_ORIGIN = "http://localhost:8000";
+import api from "../api/apiClient";
 
 export default function ImageDropzone({ value, onChange }) {
   const inputRef = useRef(null);
@@ -25,10 +24,9 @@ export default function ImageDropzone({ value, onChange }) {
     try {
       const data = new FormData();
       data.append("file", file);
-      const response = await fetch(`${API_ORIGIN}/api/uploads`, { method: "POST", body: data });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || "Upload failed. Please try again.");
-      onChange(`${API_ORIGIN}${result.url}`);
+      const result = await api.uploads.uploadImage(data);
+      if (!result || !result.url) throw new Error("Upload failed. No URL returned.");
+      onChange(result.url);
     } catch (err) {
       setError(err.message || "Upload failed. Please try again.");
     } finally {
